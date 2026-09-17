@@ -1,7 +1,5 @@
 # dsh-leanspec
 
-[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
-
 DeepSeek Harness Web UI 插件：在会话标题栏打开当前项目的 `specs/` 目录，浏览、预览、编辑并保存 LeanSpec 格式的 Spec 文件。
 
 ---
