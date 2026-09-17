@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { initialViewerState, reduceViewer, selectView } from '../src/client/viewer-state.ts'
 
-test('project without OpenSpec shows a banner and no file tree', () => {
+test('project without LeanSpec shows a banner and no file tree', () => {
   const state = reduceViewer(initialViewerState, {
     type: 'load-success',
     files: [],
@@ -10,7 +10,7 @@ test('project without OpenSpec shows a banner and no file tree', () => {
   })
   const view = selectView(state)
   assert.equal(view.showTree, false)
-  assert.equal(view.banner, '当前项目没有 OpenSpec')
+  assert.equal(view.banner, '当前项目没有 LeanSpec (specs/ 目录不存在)')
   assert.equal(state.files.length, 0)
   assert.equal(state.loadStatus, 'ready')
 })
@@ -18,12 +18,12 @@ test('project without OpenSpec shows a banner and no file tree', () => {
 test('invalid root load error shows message and no file tree', () => {
   const state = reduceViewer(initialViewerState, {
     type: 'load-error',
-    error: 'openspec not found',
+    error: 'leanspec not found',
     disconnected: false,
   })
   const view = selectView(state)
   assert.equal(view.showTree, false)
-  assert.match(view.banner ?? '', /openspec not found/)
+  assert.match(view.banner ?? '', /leanspec not found/)
   assert.equal(state.files.length, 0)
   assert.equal(state.loadStatus, 'error')
 })
@@ -31,10 +31,10 @@ test('invalid root load error shows message and no file tree', () => {
 test('disconnected load does not treat cache as saved content', () => {
   const loaded = reduceViewer(initialViewerState, {
     type: 'load-success',
-    files: ['changes/demo/proposal.md'],
+    files: ['001-user-authentication/README.md'],
   })
   const opened = reduceViewer(
-    reduceViewer(loaded, { type: 'select', path: 'changes/demo/proposal.md' }),
+    reduceViewer(loaded, { type: 'select', path: '001-user-authentication/README.md' }),
     { type: 'file-loaded', content: '# Hello' },
   )
   const disconnected = reduceViewer(opened, {
@@ -52,9 +52,9 @@ test('disconnected load does not treat cache as saved content', () => {
 test('save stays in-flight until host confirms', () => {
   let state = reduceViewer(initialViewerState, {
     type: 'load-success',
-    files: ['changes/demo/proposal.md'],
+    files: ['001-user-authentication/README.md'],
   })
-  state = reduceViewer(state, { type: 'select', path: 'changes/demo/proposal.md' })
+  state = reduceViewer(state, { type: 'select', path: '001-user-authentication/README.md' })
   state = reduceViewer(state, { type: 'file-loaded', content: '# Hello' })
   state = reduceViewer(state, { type: 'set-mode', mode: 'edit' })
   state = reduceViewer(state, { type: 'edit', draft: '# Draft' })
@@ -73,9 +73,9 @@ test('save stays in-flight until host confirms', () => {
 test('save failure keeps the draft and surfaces the error', () => {
   let state = reduceViewer(initialViewerState, {
     type: 'load-success',
-    files: ['changes/demo/proposal.md'],
+    files: ['001-user-authentication/README.md'],
   })
-  state = reduceViewer(state, { type: 'select', path: 'changes/demo/proposal.md' })
+  state = reduceViewer(state, { type: 'select', path: '001-user-authentication/README.md' })
   state = reduceViewer(state, { type: 'file-loaded', content: '# Hello' })
   state = reduceViewer(state, { type: 'set-mode', mode: 'edit' })
   state = reduceViewer(state, { type: 'edit', draft: '# Keep me' })
@@ -92,9 +92,9 @@ test('save failure keeps the draft and surfaces the error', () => {
 test('preview after save uses the saved content', () => {
   let state = reduceViewer(initialViewerState, {
     type: 'load-success',
-    files: ['config.yaml'],
+    files: ['.lean-spec/config.json'],
   })
-  state = reduceViewer(state, { type: 'select', path: 'config.yaml' })
+  state = reduceViewer(state, { type: 'select', path: '.lean-spec/config.json' })
   state = reduceViewer(state, { type: 'file-loaded', content: 'schema: spec-driven' })
   state = reduceViewer(state, { type: 'set-mode', mode: 'edit' })
   state = reduceViewer(state, { type: 'edit', draft: 'schema: custom' })

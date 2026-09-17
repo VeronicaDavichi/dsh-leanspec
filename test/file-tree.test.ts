@@ -2,44 +2,45 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { buildFileTree } from '../src/client/file-tree.ts'
 
-test('builds a nested tree from paths under openspec', () => {
+test('builds a nested tree from LeanSpec paths', () => {
   const tree = buildFileTree([
-    'changes/demo/proposal.md',
-    'config.yaml',
-    'specs/note.md',
+    '001-user-authentication/README.md',
+    '001-user-authentication/docs/design.md',
+    '002-payment-gateway/README.md',
+  ], [
+    '001-user-authentication/docs',
   ])
   assert.deepEqual(tree, [
     {
-      name: 'changes',
-      path: 'changes',
+      name: '001-user-authentication',
+      path: '001-user-authentication',
       kind: 'dir',
       children: [
         {
-          name: 'demo',
-          path: 'changes/demo',
+          name: 'docs',
+          path: '001-user-authentication/docs',
           kind: 'dir',
           children: [
-            { name: 'proposal.md', path: 'changes/demo/proposal.md', kind: 'file' },
+            { name: 'design.md', path: '001-user-authentication/docs/design.md', kind: 'file' },
           ],
         },
+        { name: 'README.md', path: '001-user-authentication/README.md', kind: 'file' },
       ],
     },
     {
-      name: 'specs',
-      path: 'specs',
+      name: '002-payment-gateway',
+      path: '002-payment-gateway',
       kind: 'dir',
       children: [
-        { name: 'note.md', path: 'specs/note.md', kind: 'file' },
+        { name: 'README.md', path: '002-payment-gateway/README.md', kind: 'file' },
       ],
     },
-    { name: 'config.yaml', path: 'config.yaml', kind: 'file' },
   ])
 })
 
-test('keeps empty directories such as specs/', () => {
-  const tree = buildFileTree(['config.yaml'], ['specs'])
+test('keeps empty directories', () => {
+  const tree = buildFileTree(['001-test/README.md'], ['001-test'])
   assert.deepEqual(tree, [
-    { name: 'specs', path: 'specs', kind: 'dir', children: [] },
-    { name: 'config.yaml', path: 'config.yaml', kind: 'file' },
+    { name: '001-test', path: '001-test', kind: 'dir', children: [{ name: 'README.md', path: '001-test/README.md', kind: 'file' }] },
   ])
 })

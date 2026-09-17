@@ -1,8 +1,8 @@
-import { OpenspecHeaderAction } from './OpenspecHeaderAction.ts'
+import { LeanspecHeaderAction } from './LeanspecHeaderAction.ts'
 
 export const inject = ['slots']
 
-export const name = 'openspec-web-viewer-client'
+export const name = 'leanspec-web-viewer-client'
 
 export function apply(ctx: {
   slots: {
@@ -12,8 +12,8 @@ export function apply(ctx: {
 }): void {
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
     name: 'conversation.session.header.utilities',
-    id: 'openspec-web-viewer',
+    id: 'leanspec-web-viewer',
     order: 10,
-    label: 'OpenSpec',
-  }, OpenspecHeaderAction))
+    label: 'LeanSpec',
+  }, LeanspecHeaderAction))
 }

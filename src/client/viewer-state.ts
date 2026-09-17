@@ -6,6 +6,7 @@ export interface ViewerState {
   loadStatus: LoadStatus
   loadError?: string
   present: boolean
+  specs: string[]  // LeanSpec 目录列表 (NNN-name 格式)
   files: string[]
   dirs: string[]
   selected: string | null
@@ -19,7 +20,7 @@ export interface ViewerState {
 
 export type ViewerAction =
   | { type: 'load-start' }
-  | { type: 'load-success'; files: string[]; dirs?: string[]; present?: boolean }
+  | { type: 'load-success'; specs?: string[]; files: string[]; dirs?: string[]; present?: boolean }
   | { type: 'load-error'; error: string; disconnected?: boolean }
   | { type: 'select'; path: string }
   | { type: 'file-loaded'; content: string }
@@ -30,11 +31,12 @@ export type ViewerAction =
   | { type: 'save-success' }
   | { type: 'save-error'; error: string }
 
-export const NO_OPENSPEC_BANNER = '当前项目没有 OpenSpec'
+export const NO_LEANSPEC_BANNER = '当前项目没有 LeanSpec (specs/ 目录不存在)'
 
 export const initialViewerState: ViewerState = {
   loadStatus: 'idle',
   present: false,
+  specs: [],
   files: [],
   dirs: [],
   selected: null,
@@ -55,6 +57,7 @@ export function reduceViewer(state: ViewerState, action: ViewerAction): ViewerSt
         loadStatus: 'ready',
         loadError: undefined,
         present: action.present !== false,
+        specs: action.specs ?? [],
         files: action.files,
         dirs: action.dirs ?? [],
       }
@@ -64,6 +67,7 @@ export function reduceViewer(state: ViewerState, action: ViewerAction): ViewerSt
         loadStatus: action.disconnected === true ? 'disconnected' : 'error',
         loadError: action.error,
         present: false,
+        specs: [],
         files: [],
         dirs: [],
         saveStatus: 'idle',
@@ -124,7 +128,7 @@ export function selectView(state: ViewerState): {
   const banner = state.loadStatus === 'error' || state.loadStatus === 'disconnected'
     ? state.loadError
     : state.loadStatus === 'ready' && !state.present
-      ? NO_OPENSPEC_BANNER
+      ? NO_LEANSPEC_BANNER
       : undefined
   const saved = state.saveStatus === 'saved' && !state.saving && state.draft === state.content
   return { showTree, banner, saved }

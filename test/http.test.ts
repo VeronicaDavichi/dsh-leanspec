@@ -4,8 +4,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, test } from 'node:test'
 import { apply } from '../src/index.ts'
-import { handleOpenspecHttp } from '../src/http.ts'
-import { NO_OPENSPEC_MESSAGE } from '../src/openspec-fs.ts'
+import { handleLeanspecHttp } from '../src/http.ts'
+import { NO_LEANSPEC_MESSAGE } from '../src/leanspec-fs.ts'
 
 const fixtures: string[] = []
 
@@ -14,14 +14,12 @@ afterEach(() => {
 })
 
 function seed(): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-openspec-http-'))
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-leanspec-http-'))
   fixtures.push(root)
-  const openspec = path.join(root, 'openspec')
-  fs.mkdirSync(path.join(openspec, 'changes', 'demo-change'), { recursive: true })
-  fs.mkdirSync(path.join(openspec, 'specs'), { recursive: true })
-  fs.writeFileSync(path.join(openspec, 'config.yaml'), 'schema: spec-driven\n')
-  fs.writeFileSync(path.join(openspec, 'changes', 'demo-change', 'proposal.md'), '# Hello\n')
-  fs.writeFileSync(path.join(openspec, 'specs', 'note.md'), '# Specs\n')
+  const specs = path.join(root, 'specs')
+  fs.mkdirSync(path.join(specs, '001-demo-change'), { recursive: true })
+  fs.writeFileSync(path.join(specs, '001-demo-change', 'README.md'), '# Hello\n')
+  fs.writeFileSync(path.join(specs, '001-demo-change', 'design.md'), '# Design\n')
   return root
 }
 
@@ -29,67 +27,61 @@ function rootParams(root: string): URLSearchParams {
   return new URLSearchParams({ root })
 }
 
-test('GET /tree returns present=false when the project has no OpenSpec', async () => {
-  const result = await handleOpenspecHttp({
+test('GET /tree returns present=false when the project has no LeanSpec', async () => {
+  const result = await handleLeanspecHttp({
     method: 'GET',
-    pathname: '/openspec-viewer/tree',
+    pathname: '/leanspec-viewer/tree',
     searchParams: new URLSearchParams(),
   })
   assert.equal(result.status, 200)
-  assert.deepEqual(result.body, { present: false, files: [], dirs: [], message: NO_OPENSPEC_MESSAGE })
+  assert.deepEqual(result.body, { present: false, specs: [], files: [], dirs: [], message: NO_LEANSPEC_MESSAGE })
 })
 
-test('GET /tree returns present=false for a directory without openspec/', async () => {
-  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-openspec-empty-'))
+test('GET /tree returns present=false for a directory without specs/', async () => {
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-leanspec-empty-'))
   fixtures.push(empty)
-  const result = await handleOpenspecHttp({
+  const result = await handleLeanspecHttp({
     method: 'GET',
-    pathname: '/openspec-viewer/tree',
+    pathname: '/leanspec-viewer/tree',
     searchParams: rootParams(empty),
   })
   assert.equal(result.status, 200)
-  assert.deepEqual(result.body, { present: false, files: [], dirs: [], message: NO_OPENSPEC_MESSAGE })
+  assert.deepEqual(result.body, { present: false, specs: [], files: [], dirs: [], message: NO_LEANSPEC_MESSAGE })
 })
 
-test('GET /tree lists every file under openspec/', async () => {
+test('GET /tree lists every LeanSpec spec directory and files', async () => {
   const root = seed()
-  const result = await handleOpenspecHttp({
+  const result = await handleLeanspecHttp({
     method: 'GET',
-    pathname: '/openspec-viewer/tree',
+    pathname: '/leanspec-viewer/tree',
     searchParams: rootParams(root),
   })
   assert.equal(result.status, 200)
-  assert.deepEqual(result.body, {
-    present: true,
-    files: [
-      'changes/demo-change/proposal.md',
-      'config.yaml',
-      'specs/note.md',
-    ],
-    dirs: [
-      'changes',
-      'changes/demo-change',
-      'specs',
-    ],
-  })
+  const body = result.body as { present: boolean; specs: string[]; files: string[]; dirs: string[] }
+  assert.equal(body.present, true)
+  assert.deepEqual(body.specs, ['001-demo-change'])
+  assert.equal(body.files.length, 2)
+  assert.ok(body.files.includes('001-demo-change/README.md'))
+  assert.ok(body.files.includes('001-demo-change/design.md'))
+  assert.deepEqual(body.dirs, [])
 })
 
-test('GET /file returns content by path under openspec/', async () => {
+test('GET /file returns content by path under specs/', async () => {
   const root = seed()
-  const result = await handleOpenspecHttp({
+  const result = await handleLeanspecHttp({
     method: 'GET',
-    pathname: '/openspec-viewer/file',
-    searchParams: new URLSearchParams({ root, path: 'config.yaml' }),
+    pathname: '/leanspec-viewer/file',
+    searchParams: new URLSearchParams({ root, path: '001-demo-change/README.md' }),
   })
   assert.equal(result.status, 200)
-  assert.deepEqual(result.body, { content: 'schema: spec-driven\n' })
+  assert.deepEqual(result.body, { content: '# Hello\n' })
 })
 
 test('GET /file rejects path traversal with 403 or 400', async () => {
   const root = seed()
-  const result = await handleOpenspecHttp({
+  const result = await handleLeanspecHttp({
     method: 'GET',
-    pathname: '/openspec-viewer/file',
+    pathname: '/leanspec-viewer/file',
     searchParams: new URLSearchParams({
       root,
       path: '../secret.md',
@@ -99,26 +91,26 @@ test('GET /file rejects path traversal with 403 or 400', async () => {
   assert.equal(typeof (result.body as { error: string }).error, 'string')
 })
 
-test('PUT /file overwrites an existing file under openspec/', async () => {
+test('PUT /file overwrites an existing file under specs/', async () => {
   const root = seed()
-  const result = await handleOpenspecHttp({
+  const result = await handleLeanspecHttp({
     method: 'PUT',
-    pathname: '/openspec-viewer/file',
+    pathname: '/leanspec-viewer/file',
     searchParams: new URLSearchParams(),
     body: JSON.stringify({
       root,
-      path: 'changes/demo-change/proposal.md',
+      path: '001-demo-change/README.md',
       content: '# Saved\n',
     }),
   })
   assert.equal(result.status, 200)
   assert.equal(
-    fs.readFileSync(path.join(root, 'openspec', 'changes', 'demo-change', 'proposal.md'), 'utf8'),
+    fs.readFileSync(path.join(root, 'specs', '001-demo-change', 'README.md'), 'utf8'),
     '# Saved\n',
   )
 })
 
-test('apply registers /openspec-viewer and unregistering removes it', () => {
+test('apply registers /leanspec-viewer and unregistering removes it', () => {
   const routes = new Map<string, unknown>()
   const captured: Array<() => void> = []
   const ctx2 = {
@@ -137,7 +129,7 @@ test('apply registers /openspec-viewer and unregistering removes it', () => {
     },
   }
   apply(ctx2)
-  assert.equal(routes.has('/openspec-viewer'), true)
+  assert.equal(routes.has('/leanspec-viewer'), true)
   for (const dispose of captured) dispose()
-  assert.equal(routes.has('/openspec-viewer'), false)
+  assert.equal(routes.has('/leanspec-viewer'), false)
 })

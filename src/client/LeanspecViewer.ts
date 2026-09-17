@@ -1,7 +1,7 @@
 import { createElement, useEffect, useReducer, useState, type ReactElement } from 'react'
 import { buildFileTree, type FileTreeNode } from './file-tree.ts'
 import { renderMarkdown } from './markdown.ts'
-import { ensureOpenspecStyles } from './styles.ts'
+import { ensureLeanspecStyles } from './styles.ts'
 import {
   initialViewerState,
   isMarkdownPath,
@@ -9,7 +9,7 @@ import {
   selectView,
 } from './viewer-state.ts'
 
-export type OpenspecViewerProps = {
+export type LeanspecViewerProps = {
   projectRoot?: string
   projectReady?: boolean
 }
@@ -57,11 +57,11 @@ function TreeNodes(props: {
             'button',
             {
               type: 'button',
-              className: 'dsh-openspec-dir',
+              className: 'dsh-leanspec-dir',
               onClick: () => props.onToggle(node.path),
             },
-            createElement('span', { className: 'dsh-openspec-chevron' }, open ? '▾' : '▸'),
-            createElement('span', { className: 'dsh-openspec-file-name' }, node.name),
+            createElement('span', { className: 'dsh-leanspec-chevron' }, open ? '▾' : '▸'),
+            createElement('span', { className: 'dsh-leanspec-file-name' }, node.name),
           ),
           open && node.children
             ? createElement(TreeNodes, {
@@ -81,17 +81,17 @@ function TreeNodes(props: {
           'button',
           {
             type: 'button',
-            className: `dsh-openspec-file${props.selected === node.path ? ' is-selected' : ''}`,
+            className: `dsh-leanspec-file${props.selected === node.path ? ' is-selected' : ''}`,
             onClick: () => props.onSelect(node.path),
           },
-          createElement('span', { className: 'dsh-openspec-file-name' }, node.name),
+          createElement('span', { className: 'dsh-leanspec-file-name' }, node.name),
         ),
       )
     }),
   )
 }
 
-export function OpenspecViewer({ projectRoot, projectReady = true }: OpenspecViewerProps): ReactElement {
+export function LeanspecViewer({ projectRoot, projectReady = true }: LeanspecViewerProps): ReactElement {
   const [state, dispatch] = useReducer(reduceViewer, initialViewerState)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const view = selectView(state)
@@ -101,7 +101,7 @@ export function OpenspecViewer({ projectRoot, projectReady = true }: OpenspecVie
   const dirty = state.draft !== state.content
 
   useEffect(() => {
-    ensureOpenspecStyles()
+    ensureLeanspecStyles()
   }, [])
 
   useEffect(() => {
@@ -111,15 +111,16 @@ export function OpenspecViewer({ projectRoot, projectReady = true }: OpenspecVie
     }
     let cancelled = false
     dispatch({ type: 'load-start' })
-    fetch(withRoot('/openspec-viewer/tree', projectRoot))
+    fetch(withRoot('/leanspec-viewer/tree', projectRoot))
       .then(async (response) => {
         if (!response.ok) throw new Error(await readError(response))
-        return await response.json() as { files: string[]; dirs?: string[]; present?: boolean }
+        return await response.json() as { specs: string[]; files: string[]; dirs?: string[]; present?: boolean }
       })
       .then((payload) => {
         if (!cancelled) {
           dispatch({
             type: 'load-success',
+            specs: payload.specs,
             files: payload.files,
             dirs: payload.dirs,
             present: payload.present,
@@ -141,7 +142,7 @@ export function OpenspecViewer({ projectRoot, projectReady = true }: OpenspecVie
     let cancelled = false
     const params = new URLSearchParams({ path: state.selected })
     if (projectRoot) params.set('root', projectRoot)
-    fetch(`/openspec-viewer/file?${params.toString()}`)
+    fetch(`/leanspec-viewer/file?${params.toString()}`)
       .then(async (response) => {
         if (!response.ok) throw new Error(await readError(response))
         return await response.json() as { content: string }
@@ -166,7 +167,7 @@ export function OpenspecViewer({ projectRoot, projectReady = true }: OpenspecVie
     if (!state.selected || state.saving) return
     dispatch({ type: 'save-start' })
     try {
-      const response = await fetch('/openspec-viewer/file', {
+      const response = await fetch('/leanspec-viewer/file', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -196,16 +197,16 @@ export function OpenspecViewer({ projectRoot, projectReady = true }: OpenspecVie
 
   return createElement(
     'div',
-    { className: 'dsh-openspec-shell' },
+    { className: 'dsh-leanspec-shell' },
     createElement(
       'aside',
-      { className: 'dsh-openspec-aside' },
-      createElement('div', { className: 'dsh-openspec-aside-title' }, 'openspec'),
-      view.banner ? createElement('p', { role: 'alert', className: 'dsh-openspec-banner' }, view.banner) : null,
+      { className: 'dsh-leanspec-aside' },
+      createElement('div', { className: 'dsh-leanspec-aside-title' }, 'LeanSpec'),
+      view.banner ? createElement('p', { role: 'alert', className: 'dsh-leanspec-banner' }, view.banner) : null,
       view.showTree
         ? createElement(
           'nav',
-          { className: 'dsh-openspec-tree' },
+          { className: 'dsh-leanspec-tree' },
           createElement(TreeNodes, {
             nodes: tree,
             selected: state.selected,
@@ -218,59 +219,59 @@ export function OpenspecViewer({ projectRoot, projectReady = true }: OpenspecVie
     ),
     createElement(
       'section',
-      { className: 'dsh-openspec-main' },
+      { className: 'dsh-leanspec-main' },
       createElement(
         'header',
-        { className: 'dsh-openspec-chrome' },
+        { className: 'dsh-leanspec-chrome' },
         createElement(
           'div',
-          { className: 'dsh-openspec-toolbar' },
+          { className: 'dsh-leanspec-toolbar' },
           createElement('button', {
             type: 'button',
-            className: `dsh-openspec-chip${state.mode === 'preview' ? ' is-active' : ''}`,
+            className: `dsh-leanspec-chip${state.mode === 'preview' ? ' is-active' : ''}`,
             onClick: () => dispatch({ type: 'set-mode', mode: 'preview' }),
           }, '预览'),
           createElement('button', {
             type: 'button',
-            className: `dsh-openspec-chip${state.mode === 'edit' ? ' is-active' : ''}`,
+            className: `dsh-leanspec-chip${state.mode === 'edit' ? ' is-active' : ''}`,
             onClick: () => dispatch({ type: 'set-mode', mode: 'edit' }),
             disabled: !state.selected,
           }, '编辑'),
           createElement('button', {
             type: 'button',
-            className: 'dsh-openspec-save',
+            className: 'dsh-leanspec-save',
             onClick: () => { void save() },
             disabled: !state.selected || !dirty || state.saving,
           }, state.saving ? '保存中…' : '保存'),
-          view.saved ? createElement('span', { className: 'dsh-openspec-status-ok' }, '已保存') : null,
-          state.saveError ? createElement('span', { role: 'alert', className: 'dsh-openspec-status-err' }, state.saveError) : null,
+          view.saved ? createElement('span', { className: 'dsh-leanspec-status-ok' }, '已保存') : null,
+          state.saveError ? createElement('span', { role: 'alert', className: 'dsh-leanspec-status-err' }, state.saveError) : null,
         ),
-        state.selected ? createElement('div', { className: 'dsh-openspec-path' }, state.selected) : null,
+        state.selected ? createElement('div', { className: 'dsh-leanspec-path' }, state.selected) : null,
       ),
       createElement(
         'div',
-        { className: 'dsh-openspec-body' },
+        { className: 'dsh-leanspec-body' },
         !state.selected && view.showTree
-          ? createElement('p', { className: 'dsh-openspec-empty' }, '选择一个文件。')
+          ? createElement('p', { className: 'dsh-leanspec-empty' }, '选择一个文件。')
           : null,
         state.selected && state.mode === 'preview' && markdown && preview?.empty
-          ? createElement('p', { className: 'dsh-openspec-empty' }, '空文件')
+          ? createElement('p', { className: 'dsh-leanspec-empty' }, '空文件')
           : null,
         state.selected && state.mode === 'preview' && markdown && preview && !preview.empty
           ? createElement('div', {
-            className: 'dsh-openspec-preview',
+            className: 'dsh-leanspec-preview',
             dangerouslySetInnerHTML: { __html: preview.html },
           })
           : null,
         state.selected && state.mode === 'preview' && !markdown
           ? createElement('pre', {
-            className: 'dsh-openspec-source',
+            className: 'dsh-leanspec-source',
             dangerouslySetInnerHTML: { __html: escapeText(state.content) },
           })
           : null,
         state.selected && state.mode === 'edit'
           ? createElement('textarea', {
-            className: 'dsh-openspec-editor',
+            className: 'dsh-leanspec-editor',
             value: state.draft,
             onChange: (event: { target: { value: string } }) => dispatch({ type: 'edit', draft: event.target.value }),
           })

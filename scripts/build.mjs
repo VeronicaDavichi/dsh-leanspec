@@ -29,7 +29,7 @@ await esbuild.build({
     '@deepseek-ai/cordis',
   ],
   banner: {
-    js: 'window.__ModuleLoader__.load({ id: "dsh-openspec", factory: (require) => {\nvar module = { exports: {} }; var exports = module.exports;',
+    js: 'window.__ModuleLoader__.load({ id: "dsh-leanspec", factory: (require) => {\nvar module = { exports: {} }; var exports = module.exports;',
   },
   footer: {
     js: 'return module.exports; } });',

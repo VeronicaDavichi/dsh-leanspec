@@ -1,5 +1,5 @@
 import { createElement, useEffect, useRef, useState, type ReactElement } from 'react'
-import { OpenspecViewer } from './OpenspecViewer.ts'
+import { LeanspecViewer } from './LeanspecViewer.ts'
 import {
   fallbackSessions,
   fallbackWorkspaces,
@@ -7,19 +7,19 @@ import {
   type SessionListSnapshot,
   type WorkspaceListSnapshot,
 } from './project-root.ts'
-import { ensureOpenspecStyles } from './styles.ts'
+import { ensureLeanspecStyles } from './styles.ts'
 
-export type OpenspecHeaderProps = {
+export type LeanspecHeaderProps = {
   sessionId?: unknown
   useWorkspaces?: (selector: (state: WorkspaceListSnapshot) => unknown) => unknown
   useSessions?: (selector: (state: SessionListSnapshot) => unknown) => unknown
 }
 
 /**
- * Session-header OpenSpec control: a capsule beside Session log that opens a dropdown viewer.
- * @returns header button and, when open, the OpenSpec popover.
+ * Session-header LeanSpec control: a capsule beside Session log that opens a dropdown viewer.
+ * @returns header button and, when open, the LeanSpec popover.
  */
-export function OpenspecHeaderAction(props: OpenspecHeaderProps = {}): ReactElement {
+export function LeanspecHeaderAction(props: LeanspecHeaderProps = {}): ReactElement {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<{ contains: (node: Node | null) => boolean } | null>(null)
   const useWorkspaces = props.useWorkspaces ?? fallbackWorkspaces
@@ -37,7 +37,7 @@ export function OpenspecHeaderAction(props: OpenspecHeaderProps = {}): ReactElem
   const projectReady = workspaceState.ready
 
   useEffect(() => {
-    ensureOpenspecStyles()
+    ensureLeanspecStyles()
   }, [])
 
   useEffect(() => {
@@ -60,23 +60,23 @@ export function OpenspecHeaderAction(props: OpenspecHeaderProps = {}): ReactElem
 
   return createElement(
     'div',
-    { ref: rootRef, className: 'dsh-openspec-root' },
+    { ref: rootRef, className: 'dsh-leanspec-root' },
     createElement(
       'button',
       {
         type: 'button',
-        className: `dsh-openspec-trigger${open ? ' is-open' : ''}`,
+        className: `dsh-leanspec-trigger${open ? ' is-open' : ''}`,
         'aria-expanded': open,
         'aria-haspopup': 'dialog',
         onClick: () => { setOpen(current => !current) },
       },
-      'OpenSpec',
+      'LeanSpec',
     ),
     open
       ? createElement(
         'div',
-        { role: 'dialog', 'aria-label': 'OpenSpec', className: 'dsh-openspec-popover' },
-        createElement(OpenspecViewer, { projectRoot, projectReady }),
+        { role: 'dialog', 'aria-label': 'LeanSpec', className: 'dsh-leanspec-popover' },
+        createElement(LeanspecViewer, { projectRoot, projectReady }),
       )
       : null,
   )

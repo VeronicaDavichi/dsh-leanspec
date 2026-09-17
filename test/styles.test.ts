@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { OPENSPEC_STYLES } from '../src/client/styles.ts'
+import { LEANSPEC_STYLES } from '../src/client/styles.ts'
 
 test('viewer styles use Harness theme aliases instead of hardcoded palette', () => {
   for (const token of [
@@ -13,14 +13,14 @@ test('viewer styles use Harness theme aliases instead of hardcoded palette', () 
     '--dsw-alias-markdown-code-block',
     '--dsw-font-family',
   ]) {
-    assert.match(OPENSPEC_STYLES, new RegExp(token.replaceAll('-', '\\-')))
+    assert.match(LEANSPEC_STYLES, new RegExp(token.replaceAll('-', '\\-')))
   }
-  assert.doesNotMatch(OPENSPEC_STYLES, /#[0-9a-fA-F]{3,8}/)
+  assert.doesNotMatch(LEANSPEC_STYLES, /#[0-9a-fA-F]{3,8}/)
 })
 
 test('file path sits below the toolbar instead of sharing the button row', () => {
-  assert.match(OPENSPEC_STYLES, /\.dsh-openspec-chrome \{[\s\S]*flex-direction: column/)
-  assert.match(OPENSPEC_STYLES, /\.dsh-openspec-path \{[\s\S]*display: block/)
-  assert.match(OPENSPEC_STYLES, /\.dsh-openspec-path \{[\s\S]*text-align: left/)
-  assert.doesNotMatch(OPENSPEC_STYLES, /\.dsh-openspec-path \{[\s\S]*margin-left: auto/)
+  assert.match(LEANSPEC_STYLES, /\.dsh-leanspec-chrome \{[\s\S]*flex-direction: column/)
+  assert.match(LEANSPEC_STYLES, /\.dsh-leanspec-path \{[\s\S]*display: block/)
+  assert.match(LEANSPEC_STYLES, /\.dsh-leanspec-path \{[\s\S]*text-align: left/)
+  assert.doesNotMatch(LEANSPEC_STYLES, /\.dsh-leanspec-path \{[\s\S]*margin-left: auto/)
 })

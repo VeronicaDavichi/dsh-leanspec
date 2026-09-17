@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { handleOpenspecHttp } from './http.ts'
+import { handleLeanspecHttp } from './http.ts'
 
-export const name = 'openspec-web-viewer'
+export const name = 'leanspec-web-viewer'
 
 export const inject = ['webServer']
 
@@ -18,20 +18,20 @@ export function apply(ctx: {
   ctx.effect(() => {
     const dispose = ctx.webServer.register({
       kind: 'prefix',
-      path: '/openspec-viewer',
-      handler: (req, res) => handleOpenspecRequest(req, res),
+      path: '/leanspec-viewer',
+      handler: (req, res) => handleLeanspecRequest(req, res),
     })
     return dispose
   })
 }
 
-async function handleOpenspecRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+async function handleLeanspecRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const host = req.headers.host ?? '127.0.0.1'
   const url = new URL(req.url ?? '/', `http://${host}`)
   const chunks: Buffer[] = []
   for await (const chunk of req) chunks.push(Buffer.from(chunk))
   const rawBody = Buffer.concat(chunks).toString('utf8')
-  const result = await handleOpenspecHttp({
+  const result = await handleLeanspecHttp({
     method: req.method ?? 'GET',
     pathname: url.pathname,
     searchParams: url.searchParams,

@@ -1,10 +1,10 @@
 import {
-  OpenspecError,
-  listOpenspecFiles,
-  NO_OPENSPEC_MESSAGE,
-  readFile,
-  writeFile,
-} from './openspec-fs.ts'
+  LeanspecError,
+  listSpecs,
+  NO_LEANSPEC_MESSAGE,
+  readSpecFile,
+  writeSpecFile,
+} from './leanspec-fs.ts'
 
 export interface HttpInput {
   method: string
@@ -18,8 +18,8 @@ export interface HttpResult {
   body: unknown
 }
 
-function statusFor(error: OpenspecError): number {
-  if (error.code === 'not-openspec') return 404
+function statusFor(error: LeanspecError): number {
+  if (error.code === 'not-spec') return 404
   if (error.code === 'invalid-root') return 400
   if (error.code === 'forbidden' || error.code === 'invalid-path') return 403
   if (error.code === 'not-found' || error.code === 'not-file') return 404
@@ -27,7 +27,7 @@ function statusFor(error: OpenspecError): number {
 }
 
 function fail(error: unknown): HttpResult {
-  if (error instanceof OpenspecError) {
+  if (error instanceof LeanspecError) {
     return { status: statusFor(error), body: { error: error.message, code: error.code } }
   }
   const message = error instanceof Error ? error.message : 'unexpected error'
@@ -35,7 +35,7 @@ function fail(error: unknown): HttpResult {
 }
 
 function routeTail(pathname: string): string {
-  const prefix = '/openspec-viewer'
+  const prefix = '/leanspec-viewer'
   if (pathname === prefix) return ''
   if (pathname.startsWith(`${prefix}/`)) return pathname.slice(prefix.length)
   return pathname
@@ -61,25 +61,28 @@ function requestRoot(input: HttpInput, payload?: Record<string, unknown>): strin
   return typeof fromBody === 'string' ? fromBody : undefined
 }
 
-export async function handleOpenspecHttp(input: HttpInput): Promise<HttpResult> {
+export async function handleLeanspecHttp(input: HttpInput): Promise<HttpResult> {
   const method = input.method.toUpperCase()
   const tail = routeTail(input.pathname)
 
   try {
+    // GET /tree 或 /changes - 列出所有 Specs
     if (method === 'GET' && (tail === '/tree' || tail === '/changes')) {
-      const listed = listOpenspecFiles(requestRoot(input))
+      const listed = listSpecs(requestRoot(input))
       if (!listed.present) {
-        return { status: 200, body: { present: false, files: [], dirs: [], message: NO_OPENSPEC_MESSAGE } }
+        return { status: 200, body: { present: false, specs: [], files: [], dirs: [], message: NO_LEANSPEC_MESSAGE } }
       }
-      return { status: 200, body: { present: true, files: listed.files, dirs: listed.dirs } }
+      return { status: 200, body: { present: true, specs: listed.specs, files: listed.files, dirs: listed.dirs } }
     }
 
+    // GET /file - 读取 Spec 文件
     if (method === 'GET' && tail === '/file') {
       const relPath = input.searchParams.get('path') ?? ''
-      const content = readFile(requestRoot(input), relPath)
+      const content = readSpecFile(requestRoot(input), relPath)
       return { status: 200, body: { content } }
     }
 
+    // PUT /file - 写入 Spec 文件
     if (method === 'PUT' && tail === '/file') {
       const payload = parseJsonBody(input.body)
       if (payload === undefined) {
@@ -89,7 +92,7 @@ export async function handleOpenspecHttp(input: HttpInput): Promise<HttpResult> 
         return { status: 400, body: { error: 'content must be a string' } }
       }
       const relPath = typeof payload.path === 'string' ? payload.path : ''
-      writeFile(requestRoot(input, payload), relPath, payload.content)
+      writeSpecFile(requestRoot(input, payload), relPath, payload.content)
       return { status: 200, body: { ok: true } }
     }
 

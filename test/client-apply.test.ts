@@ -22,6 +22,6 @@ test('client apply injects a header utility beside session log', () => {
   apply(ctx)
   assert.equal(registrations.length, 1)
   assert.equal(registrations[0].options.name, 'conversation.session.header.utilities')
-  assert.equal(registrations[0].options.id, 'openspec-web-viewer')
-  assert.equal(registrations[0].options.label, 'OpenSpec')
+  assert.equal(registrations[0].options.id, 'leanspec-web-viewer')
+  assert.equal(registrations[0].options.label, 'LeanSpec')
 })
