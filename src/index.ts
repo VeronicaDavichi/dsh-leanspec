@@ -37,6 +37,21 @@ async function handleLeanspecRequest(req: IncomingMessage, res: ServerResponse):
     searchParams: url.searchParams,
     body: rawBody,
   })
-  res.writeHead(result.status, { 'content-type': 'application/json; charset=utf-8' })
+  // Binary first: an image response must not be JSON-encoded, and the bytes go
+  // out as they came off disk.
+  if (result.binary) {
+    res.writeHead(result.status, {
+      'content-type': result.binary.contentType,
+      'x-content-type-options': 'nosniff',
+      ...result.binary.headers,
+    })
+    res.end(result.binary.bytes)
+    return
+  }
+  // nosniff on the JSON branch too: this origin also serves file content.
+  res.writeHead(result.status, {
+    'content-type': 'application/json; charset=utf-8',
+    'x-content-type-options': 'nosniff',
+  })
   res.end(JSON.stringify(result.body))
 }

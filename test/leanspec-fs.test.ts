@@ -8,11 +8,29 @@ import {
   createSpecDir,
   listSpecs,
   readConfig,
+  readSpecBinary,
   readSpecFile,
   resolveExistingFile,
   resolveSpecsDir,
   writeSpecFile,
 } from '../src/leanspec-fs.ts'
+
+/**
+ * A real 1x1 PNG, built at run time — no binary fixture is committed. The magic
+ * bytes are asserted below, so the round-trip test cannot silently degrade into
+ * comparing random bytes against themselves.
+ */
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+function seedPng(root: string, relPath: string): { full: string; bytes: Buffer } {
+  const full = path.join(root, 'specs', relPath)
+  fs.mkdirSync(path.dirname(full), { recursive: true })
+  fs.writeFileSync(full, TINY_PNG)
+  return { full, bytes: fs.readFileSync(full) }
+}
 
 const fixtures: string[] = []
 
@@ -74,8 +92,8 @@ test('empty project root means LeanSpec is absent', () => {
   assert.throws(() => resolveSpecsDir(''), (err: unknown) => {
     return err instanceof LeanspecError && err.code === 'not-spec'
   })
-  assert.deepEqual(listSpecs(''), { present: false, specs: [], files: [], dirs: [] })
-  assert.deepEqual(listSpecs(undefined), { present: false, specs: [], files: [], dirs: [] })
+  assert.deepEqual(listSpecs(''), { present: false, specs: [], files: [], dirs: [], statusByDir: {} })
+  assert.deepEqual(listSpecs(undefined), { present: false, specs: [], files: [], dirs: [], statusByDir: {} })
 })
 
 test('missing specs directory means LeanSpec is absent', () => {
@@ -83,7 +101,7 @@ test('missing specs directory means LeanSpec is absent', () => {
   assert.throws(() => resolveSpecsDir(root), (err: unknown) => {
     return err instanceof LeanspecError && (err as LeanspecError).code === 'not-spec'
   })
-  assert.deepEqual(listSpecs(root), { present: false, specs: [], files: [], dirs: [] })
+  assert.deepEqual(listSpecs(root), { present: false, specs: [], files: [], dirs: [], statusByDir: {} })
 })
 
 test('specs directory without any specs is still present', () => {
@@ -94,6 +112,7 @@ test('specs directory without any specs is still present', () => {
   assert.deepEqual(listed.specs, [])
   assert.deepEqual(listed.files, [])
   assert.deepEqual(listed.dirs, [])
+  assert.deepEqual(listed.statusByDir, {})
 })
 
 test('lists all spec directories in NNN-name format', () => {
@@ -177,6 +196,44 @@ test('rejects missing files and does not create them', () => {
   )
 })
 
+test('readSpecBinary returns the exact bytes of a real png', () => {
+  const root = seedProject()
+  const { bytes } = seedPng(root, '001-user-authentication/assets/tiny.png')
+  assert.deepEqual(bytes.subarray(0, 8), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+
+  const read = readSpecBinary(root, '001-user-authentication/assets/tiny.png')
+  assert.equal(Buffer.isBuffer(read), true)
+  assert.equal(read.equals(bytes), true, 'bytes must round-trip unchanged')
+  assert.equal(read.length, TINY_PNG.length)
+})
+
+test('readSpecBinary refuses an oversize file before reading it', () => {
+  const root = seedProject()
+  const { full } = seedPng(root, '001-user-authentication/assets/tiny.png')
+
+  // Explicit budget, small enough that the test never writes 20MB.
+  assert.throws(
+    () => readSpecBinary(root, '001-user-authentication/assets/tiny.png', 4),
+    (err: unknown) => err instanceof LeanspecError && err.code === 'too-large',
+  )
+
+  // The default budget is the shared 20MB constant; the file only has to be
+  // *statted* as larger than it, so a sparse file keeps the fixture tiny.
+  fs.truncateSync(full, 20 * 1024 * 1024 + 1)
+  assert.throws(
+    () => readSpecBinary(root, '001-user-authentication/assets/tiny.png'),
+    (err: unknown) => err instanceof LeanspecError && err.code === 'too-large',
+  )
+})
+
+test('readSpecBinary refuses a directory even though it exists', () => {
+  const root = seedProject()
+  assert.throws(
+    () => readSpecBinary(root, '001-user-authentication/docs'),
+    (err: unknown) => err instanceof LeanspecError && err.code === 'not-file',
+  )
+})
+
 test('creates new spec directory with valid NNN-name format', () => {
   const root = tmpRoot()
   fs.mkdirSync(path.join(root, 'specs'), { recursive: true })
@@ -233,4 +290,62 @@ test('returns null when config is invalid JSON', () => {
   
   const config = readConfig(root)
   assert.equal(config, null)
+})
+
+test('reads a spec status from frontmatter', () => {
+  const root = tmpRoot()
+  const specs = path.join(root, 'specs')
+  fs.mkdirSync(path.join(specs, '001-frontmatter'), { recursive: true })
+  fs.writeFileSync(path.join(specs, '001-frontmatter', 'README.md'), '---\nstatus: in-progress\n---\n\n# Demo\n')
+  assert.deepEqual(listSpecs(root).statusByDir, { '001-frontmatter': 'in-progress' })
+})
+
+test('falls back to the body 状态 line for legacy specs', () => {
+  const root = tmpRoot()
+  const specs = path.join(root, 'specs')
+  fs.mkdirSync(path.join(specs, '001-legacy'), { recursive: true })
+  fs.writeFileSync(path.join(specs, '001-legacy', 'README.md'), '# Legacy\n\n**状态**: complete\n')
+  assert.deepEqual(listSpecs(root).statusByDir, { '001-legacy': 'complete' })
+})
+
+test('omits specs whose README has no usable status', () => {
+  const root = seedProject()
+  assert.deepEqual(listSpecs(root).statusByDir, {})
+})
+
+test('omits a spec without README.md instead of failing the listing', () => {
+  const root = tmpRoot()
+  const specs = path.join(root, 'specs')
+  fs.mkdirSync(path.join(specs, '001-no-readme'), { recursive: true })
+  fs.writeFileSync(path.join(specs, '001-no-readme', 'design.md'), '# Design\n')
+
+  const listed = listSpecs(root)
+  assert.equal(listed.present, true)
+  assert.deepEqual(listed.specs, ['001-no-readme'])
+  assert.deepEqual(listed.statusByDir, {})
+})
+
+test('reads frontmatter even when the README is far larger than the 2KB head', () => {
+  const root = tmpRoot()
+  const specs = path.join(root, 'specs')
+  fs.mkdirSync(path.join(specs, '001-big'), { recursive: true })
+  const padding = Array.from({ length: 2000 }, (_, i) => `Line ${i} of prose.`).join('\n')
+  fs.writeFileSync(path.join(specs, '001-big', 'README.md'), `---\nstatus: archived\n---\n\n${padding}\n`)
+  // Only the head is read, so the body padding never enters the picture.
+  assert.deepEqual(listSpecs(root).statusByDir, { '001-big': 'archived' })
+})
+
+test('maps several specs at once and leaves unparseable ones out', () => {
+  const root = tmpRoot()
+  const specs = path.join(root, 'specs')
+  const cases: Array<[string, string]> = [
+    ['001-a', '---\nstatus: draft\n---\n'],
+    ['002-b', '---\nstatus: complete\n---\n'],
+    ['003-c', '# no status here\n'],
+  ]
+  for (const [name, body] of cases) {
+    fs.mkdirSync(path.join(specs, name), { recursive: true })
+    fs.writeFileSync(path.join(specs, name, 'README.md'), body)
+  }
+  assert.deepEqual(listSpecs(root).statusByDir, { '001-a': 'draft', '002-b': 'complete' })
 })

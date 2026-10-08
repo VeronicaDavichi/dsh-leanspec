@@ -1,6 +1,6 @@
 node_modules/
 *.tsbuildinfo
 .DS_Store
-openspec/
 .claude/
 .cursor/
+.explore/

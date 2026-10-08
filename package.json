@@ -1,6 +1,6 @@
 {
   "name": "dsh-leanspec",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "DeepSeek Harness plugin that browses, previews, edits, and saves LeanSpec change Markdown files in the Web UI.",
   "license": "MIT",

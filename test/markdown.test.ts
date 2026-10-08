@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { renderMarkdown } from '../src/client/markdown.ts'
+import { renderMarkdown, stripFrontmatter } from '../src/client/markdown.ts'
 
 test('empty markdown is an empty preview state', () => {
   const result = renderMarkdown('')
@@ -57,4 +57,46 @@ test('table content is sanitized for XSS', () => {
   assert.doesNotMatch(result.html, /<script/i)
   assert.doesNotMatch(result.html, /alert\(1\)/)
   assert.match(result.html, /<table>/)
+})
+
+test('a leading YAML frontmatter block is not rendered as content', () => {
+  const result = renderMarkdown('---\nstatus: draft\ncreated: 2026-01-01\ntags:\n  - spec\n---\n\n# 标题\n\n正文\n')
+  assert.equal(result.empty, false)
+  assert.doesNotMatch(result.html, /<hr>/, 'the fences must not become rulers')
+  assert.doesNotMatch(result.html, /status/, 'the YAML must not become a heading')
+  assert.match(result.html, /<h1>标题<\/h1>/)
+  assert.match(result.html, /正文/)
+})
+
+test('frontmatter is stripped with CRLF endings and after a BOM', () => {
+  const crlf = renderMarkdown('---\r\nstatus: in-progress\r\n---\r\n\r\n# 标题\r\n')
+  assert.doesNotMatch(crlf.html, /status/)
+  assert.match(crlf.html, /标题/)
+  const bom = renderMarkdown('\uFEFF---\nstatus: draft\n---\n\n# 标题\n')
+  assert.doesNotMatch(bom.html, /status/)
+  assert.match(bom.html, /标题/)
+})
+
+test('a frontmatter-only file falls back to the empty state', () => {
+  const result = renderMarkdown('---\nstatus: complete\ncreated: 2026-01-01\n---\n')
+  assert.equal(result.empty, true)
+  assert.equal(result.html, '')
+})
+
+test('a document that merely opens with a ruler keeps its content', () => {
+  const source = '---\n\n# 标题\n\n---\n\n正文\n'
+  assert.equal(stripFrontmatter(source), source)
+  assert.match(renderMarkdown(source).html, /<h1>标题<\/h1>/)
+})
+
+test('an unclosed fence and an inner ruler are left alone', () => {
+  const unclosed = renderMarkdown('---\nstatus: draft\n\n正文\n')
+  assert.match(unclosed.html, /<hr>/, 'an unclosed fence is body text, not frontmatter')
+  const inner = renderMarkdown('# 标题\n\n---\n\n正文\n')
+  assert.match(inner.html, /<hr>/, 'a ruler after content is a separator, not frontmatter')
+})
+
+test('stripFrontmatter leaves frontmatter-free sources byte for byte', () => {
+  const source = '# 标题\n\n| a | b |\n|---|---|\n| 1 | 2 |\n'
+  assert.equal(stripFrontmatter(source), source)
 })

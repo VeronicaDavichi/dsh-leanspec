@@ -13,7 +13,7 @@ npm run build
 ## Load locally
 
 ```sh
-dsh plugin --profile web add /absolute/path/to/dsh-openspec
+dsh plugin --profile web add /absolute/path/to/dsh-leanspec
 dsh web
 ```
 
