@@ -86,6 +86,8 @@ completed: '2026-10-08'
 `.explore/verify-image-preview.ts` 复用**真** `handleLeanspecHttp` 与**真** `LEANSPEC_STYLES`，只需一张 487 B 真 PNG（240×140），其余 fixture 脚本自建。
 复现：`node --experimental-strip-types .explore/verify-image-preview.ts`
 
+> ⚠️ **该脚本已于 2026-10-15 随 `.explore/` 草稿目录一并清理删除**（用户指示「清」）：上面这条命令与下面的量测结论保留为**历史记录**，新克隆的仓库无法再复现这一次像素级量测 —— 原委见 [tasks.md](./tasks.md) 归档段的遗留项。
+
 | 层 | 实测 |
 |----|------|
 | 端点矩阵（Node 侧，先于浏览器） | **7/7 PASS**：200 → `image/png` **487 B** + `no-cache` + `nosniff`；415 / 413（21MB）/ 404 / 400（缺 `path`）/ 403（`..` 越界）全对，**六条错误响应零文件内容泄漏** |

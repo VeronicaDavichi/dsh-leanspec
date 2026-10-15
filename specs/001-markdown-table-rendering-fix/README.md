@@ -3,6 +3,7 @@ status: complete
 priority: high
 tags: [viewer, markdown, table]
 created: 2026-09-17
+completed: '2026-09-17'
 ---
 
 # Markdown 表格渲染修复

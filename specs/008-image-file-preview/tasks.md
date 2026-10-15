@@ -149,4 +149,5 @@
 - **位置**：保持 `specs/008-image-file-preview/` ✅ **未移动** —— 归档是状态转换 ✅ 移动会打断跨档引用 / Git 历史链接 ✅（沿用本仓库默认）
 - **任务**：**16 / 16 全勾** ✅（T0.1–T0.2 / T1.1–T1.4 / T2.1–T2.3 / T3.1–T3.4 / T4.1–T4.3）
 - **归档时三绿**：`npm run typecheck` 干净 ✅ · `npm test` **271 / 271 / fail 0** ✅ · `npm run build` `lib/index.js` **12,522 B** / `lib/client.js` **139,087 B** ✅（构建后 `git status lib` 为空 ✅ 提交产物与重建逐字节一致 ✅）
-- **遗留（不阻塞归档 ✅，已记录）**：T4.1 的复现脚本 `.explore/verify-image-preview.ts` 与那张 487 B fixture PNG **不在版本控制内**（磁盘保留 ✅ 但新克隆的仓库无法复现该像素级量测 ⚠️）—— 如需可移入 `specs/008-image-file-preview/` 后提交 ✅
+- **遗留（不阻塞归档 ✅，已记录）**：T4.1 的复现脚本 `.explore/verify-image-preview.ts` 与那张 487 B fixture PNG **不在版本控制内**（新克隆的仓库无法复现该像素级量测 ⚠️）—— 可选动作是移入 `specs/008-image-file-preview/` 后提交。
+  - **2026-10-15 更新**：用户指示清理 `.explore/` 草稿目录 ✅ 该脚本与 fixture **已删除且未入库** ⇒ 上述可选动作**不再可选**，T4.1 的像素级复现路径不可得；本文件与 [README.md](./README.md) 里的端点矩阵、浏览器解码、像素数字与原始命令**全部保留**作为留痕 ✅（若要重跑，需按 README 的说明重建脚本 ✅）
