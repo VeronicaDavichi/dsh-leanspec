@@ -37,7 +37,7 @@ export const SPLIT_STORAGE_KEY = 'leanspec.split'
  * cannot host a 420px tree *and* a 360px body, so the tree shrinks instead of
  * squeezing the body below {@link BODY_MIN}. The lower bound wins only when
  * even that is impossible — a body that scrolls beats a tree too narrow to
- * print `006-status-demo-none`.
+ * print `007-dual-surface-and-draggable-split`.
  */
 export function clampSplit(desired: number, availableWidth: number): number {
   const usable = Number.isFinite(availableWidth) ? availableWidth - BODY_MIN : SPLIT_MAX

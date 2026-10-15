@@ -1,14 +1,15 @@
 ---
-status: draft
+status: complete
 priority: medium
 tags: [viewer, ui, status]
 created: 2026-10-08
+completed: '2026-10-08'
 ---
 
 # Spec 列表状态标签
 
 **类型**: 设计驱动（design-first）
-**状态**: draft
+**状态**: complete（**2026-10-08 归档** —— 11 项实现任务 + T-E1 / T4.3 人工目视验收均已完成 ✅）
 **优先级**: medium
 **创建日期**: 2026-10-08
 
@@ -36,6 +37,18 @@ LeanSpec 预览面板左侧的文件树里，spec 目录行目前只有折叠箭
 | [requirements.md](./requirements.md) | 从设计反推的功能需求（REQ-1..6）与 EARS 验收标准 |
 | [tasks.md](./tasks.md) | 按层拆分的实现任务与验证方法 |
 | [assets/design-references/](./assets/design-references/) | 配色决策过程稿（成稿色板 / 档位梯 / 候选对比） |
+
+---
+
+## 配色过程稿（预览素材）
+
+> 本节兼作 [`specs/008-image-file-preview`](../008-image-file-preview/README.md) 的**手工验收素材**：markdown 里的**相对路径图片**应被改写为 `/leanspec-viewer/raw` 端点并正常渲染（而不是裂图 ❌）。
+
+![成稿色板](./assets/design-references/01-palette-final.png)
+
+![配色档位梯](./assets/design-references/02-color-ladders.png)
+
+![候选对比](./assets/design-references/03-candidate-compare.png)
 
 ---
 
@@ -73,7 +86,7 @@ LeanSpec 预览面板左侧的文件树里，spec 目录行目前只有折叠箭
 
 ## 前置发现的仓库问题（不在本 Spec 范围，但阻塞工具链）
 
-1. ~~**`specs/001-.../README.md` 缺 frontmatter** → `leanspec list` 抛 `Parse error: No frontmatter found`~~ → **2026-10-08 已修复**（补 4 行 frontmatter，正文未动）。修复后 CLI 报出的下一个阻塞是 `specs/006-status-demo-none/README.md: Missing required field: status` —— 该夹具为验证 `-` 占位而**故意**不带 status，用户裁定暂不处理，故 CLI / MCP 仍返回 0 个 spec。
+1. ~~**`specs/001-.../README.md` 缺 frontmatter** → `leanspec list` 抛 `Parse error: No frontmatter found`~~ → **2026-10-08 已修复**（补 4 行 frontmatter，正文未动）。修复后 CLI 报出的下一个阻塞是 `specs/006-status-demo-none/README.md: Missing required field: status`（该夹具为验证 `-` 占位而**故意**不带 status）—— **2026-10-08 四个演示夹具（003～006）已删除 ✅ 阻塞解除：`lean-spec list` 实测正常列出 001 / 002 / 007 / 008** ✅。
 2. **`.lean-spec/templates/` 缺 `spec-template.md`** → `leanspec create` 报 `Failed to load template`，只能用 `mkdir` 手工建目录。
 
 两项均为探索阶段的额外发现，**已记录、未擅自修复**，详见 design.md「已知阻塞」。

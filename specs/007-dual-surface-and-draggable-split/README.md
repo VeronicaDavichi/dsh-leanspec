@@ -113,8 +113,8 @@ LeanSpec 面板目前只有一种形态：锚在会话页眉 LeanSpec 按钮下�
 
 ## 前置发现的仓库状态（不在本 Spec 范围）
 
-1. `specs/003..006-status-demo-*` 是状态标签验收用的**临时演示 spec**，等用户目视确认后删除；本 Spec 因此取号 **007**（避开占用）。
-2. `specs/001-markdown-table-rendering-fix/README.md` 的 frontmatter **已于 2026-10-08 补齐**（正文未动）。`leanspec list` / `validate` / MCP 仍返回 0，原因是 `specs/006-status-demo-none`（状态标签演示夹具）**故意缺必填 `status`**，用户裁定暂不处理；插件自身的状态解析走独立正则，不受影响。
+1. `specs/003..006-status-demo-*` 是状态标签验收用的**临时演示 spec** ✅ **已于 2026-10-08 删除** ✅（本 Spec 当时为避开占用而取号 **007** ✅）。
+2. `specs/001-markdown-table-rendering-fix/README.md` 的 frontmatter **已于 2026-10-08 补齐**（正文未动）。`leanspec list` / `validate` / MCP 曾因 `specs/006-status-demo-none`（状态标签演示夹具）**故意缺必填 `status`** 而返回 0 个 spec —— **2026-10-08 该夹具删除后阻塞解除** ✅（`lean-spec list` 实测列出 001 / 002 / 007 / 008 ✅）；插件自身的状态解析走独立正则，不受影响。
 
 ---
 

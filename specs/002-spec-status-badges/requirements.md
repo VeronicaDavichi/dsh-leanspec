@@ -155,17 +155,19 @@
 |---|------|------|
 | A1 | ✅ 实测 | 真实仓库冒烟：`specs/001-markdown-table-rendering-fix`（无 frontmatter，仅正文 `**状态**: complete`）解析为 `complete`；用例 `the repository spec 001 style README parses through the body fallback`、`falls back to the body 状态 line for legacy specs`；绿色为 styles 断言的 `green-500` |
 | A2 | ✅ 自动化 | 用例 `frontmatter wins over the body line`（frontmatter `in-progress` + 正文 `draft` → `in-progress`）；渲染用例断言文案 `WIP`，styles 断言其色源为 `amber-400` |
-| A3 | ✅ 自动化（行高部分待目视） | 用例 `a spec without a status renders the bare dash placeholder`、`omits specs whose README has no usable status`；「行高一致」与「无底色」归 T4.3 第 6 项目视 |
+| A3 | ✅ 自动化 + 目视 | 用例 `a spec without a status renders the bare dash placeholder`、`omits specs whose README has no usable status`；「行高一致」与「无底色」已由用户在 T4.3 第 6 项目视确认 ✅（2026-10-08） |
 | A3b | ✅ 自动化 + 实测（浏览器） | 用例 `all six badges share one pinned width and centre their label` 锁定 `box-sizing` / `min-width: 42px` / `text-align`；Playwright 以宿主字体栈实测六支均 **42 × 18px**、名称左边界一致（64px），跨字体最坏 Verdana 27.05px 仍容于 30px 内容区。宽度换算与版本订正见 design.md §6.2 |
 | A4 | ✅ 自动化 | 用例 `unknown values never leak through`（含 `<script>` 注入值）、`a status outside the vocabulary becomes the placeholder, never raw text`、`a prototype key can never masquerade as a status`（`constructor` / `__proto__` / `toString`） |
-| A5 | ⏳ 待目视 | 无法自动化（无浏览器）；断言层面已保证标签 `flex: 0 0 auto` 不可压缩，归 T4.3 第 4 项 |
+| A5 | ✅ 目视通过 | 无法自动化（无浏览器）；断言层面已保证标签 `flex: 0 0 auto` 不可压缩，窄面板不截断归 T4.3 第 4 项 —— **用户已于 2026-10-08 目视确认** ✅ |
 | A6 | ✅ 自动化 | 用例 `a spec row with a status renders a span badge carrying the short label`、`the row button never gains a nested button` |
 | A7 | ✅ 自动化 | `npm test` **93 项全通过**；`viewer styles use Harness theme aliases instead of hardcoded palette` 中的零 hex 断言通过，且全仓库 `src/**.ts` 扫描无 hex |
 | A8 | ✅ 自动化 | 用例 `the five status fills stay at least 15 grey steps apart` → 实测最小间距 **18.58**（planned↔complete）。**该断言在实现阶段抓出了初稿 14.53 的缺陷**，见 design.md §5.1 勘误 |
 | A9 | ✅ 自动化 | 用例 `badge text keeps at least 4.5:1 against every fill` → 最低 **4.73:1**（planned） |
-| A10 | ✅ 自动化（端到端待目视） | 用例 `saving a spec README updates its badge without a reload`；「真实点击保存」归 T4.3 第 8 项 |
+| A10 | ✅ 自动化 + 目视 | 用例 `saving a spec README updates its badge without a reload`；「真实点击保存」已由用户在 T4.3 第 8 项目视确认 ✅（2026-10-08） |
 | A11 | ✅ 自动化 | 用例 `GET /tree returns an empty statusByDir when nothing parses`、`GET /tree returns present=false ... statusByDir: {}`、`omits a spec without README.md instead of failing the listing` |
 
-**结论**：A1–A4、A3b、A6–A9、A11 已由自动化与实测判定为**通过**；A5、A10 与 A3 的行高部分只能由人眼判定，归入 T-E1 / T4.3（见 tasks.md）。
+**结论**：**A1–A11 全部判定通过 ✅** —— A1–A4、A3b、A6–A9、A11 由自动化与实测判定；A5、A10 与 A3 的行高部分由用户在 T-E1 / T4.3 目视判定 ✅（2026-10-08）。
 
-**验证缺口（据实记录）**：AI 无法自行完成 T-E1 / T4.3 —— 直连运行中的 GUI（`http://127.0.0.1:43120`）返回 **403**（需会话 token），且本模型不接受图像输入，无法判读自己生成的截图。因此色彩观感、窄面板布局、暗色主题三项**只有用户能验收**。
+> ⚠️ **据实留痕**：A5 / A10 / A3 行高部分按用户 2026-10-08 指令「标记 complete」结项 ✅ **未逐条回执** —— 若日后发现其中某条不成立 ✅ 回退本条并回填为新任务即可 ✅（`tasks.md` 的 T4.3 保留了 9 项原始清单 ✅）。
+
+**验证缺口（据实记录，已闭合）**：AI 无法自行完成 T-E1 / T4.3 —— 直连运行中的 GUI 返回 **403**（需会话 token），且本模型不接受图像输入，无法判读自己生成的截图。因此色彩观感、窄面板布局、暗色主题三项**只有用户能验收** —— **2026-10-08 已由用户目视完成 ✅ 本行保留作为「为何这些项只能人验」的留痕** ✅。

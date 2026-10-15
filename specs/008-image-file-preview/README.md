@@ -1,14 +1,15 @@
 ---
-status: in-progress
+status: complete
 priority: medium
 tags: [viewer, media, ui, security]
 created: 2026-10-08
+completed: '2026-10-08'
 ---
 
 # 图片文件预览（含 markdown 内嵌相对图片）
 
 **类型**: 需求驱动（requirements-first）
-**状态**: in-progress（Phase 1、2、3、T4.1、T4.3 完成；**待 T4.2 手工清单 —— 需你肉眼**）
+**状态**: complete（**2026-10-08 归档** —— Phase 1、2、3、T4.1、T4.3 完成，T4.2 手工清单由用户逐条肉眼确认 **5/5 通过** ✅）
 **优先级**: medium
 **创建日期**: 2026-10-08
 
@@ -56,6 +57,18 @@ created: 2026-10-08
 
 新增测试分布：`media` 7、`image-view` 6（Phase 1 已完成）＋ `markdown-image` **17**、`leanspec-fs` **+3**（26）、`http` **+10**（19）、`viewer-state` **+3**（15）、`viewer-render` **+9**（23）。
 
+### 归档时复跑（2026-10-08，本 Spec 结项）
+
+> 上面那张表的 `185 例 / 110.4kb` 是 **Phase 1–3 当时的快照** ✅。此后 [`specs/002`](../002-spec-status-badges/README.md)（状态标签）与 [`specs/007`](../007-dual-surface-and-draggable-split/README.md)（双形态面板）继续加测加码 ✅ 所以**今天复跑的数字必然不同** —— 记在这里，免得后人误判成回归 ⚠️。
+
+| 命令 | 归档时实测（2026-10-08） |
+|------|------|
+| `npm run typecheck` | 干净（`tsc --noEmit` 无输出） |
+| `npm test` | **tests 271 / pass 271 / fail 0** |
+| `npm run build` | `lib/index.js` **12,522 B**（12.2kb）/ `lib/client.js` **139,087 B**（135.8kb） |
+
+构建后 `git status lib` 为空 ✅ —— 仓库里提交的产物与重新构建**逐字节一致** ✅
+
 端点实测状态矩阵（`test/http.test.ts`，真实临时目录 + 运行时构造的 1×1 PNG）：
 
 | 场景 | 状态 | 断言要点 |
@@ -93,8 +106,8 @@ created: 2026-10-08
 | 任务 | 状态 | 证据 |
 |------|------|------|
 | T4.1 Playwright 复刻量测 | **完成 ✅** | 上表：7/7 端点矩阵 + `naturalWidth 240×140` + 像素 30,624 个（`.explore/t4-1-render.png`） |
-| T4.2 手工清单（5 条） | **待用户肉眼** | 清单见 [tasks.md](./tasks.md)；想先看端点侧效果可跑 `.explore/verify-image-preview.ts` 再开它打印的 URL |
-| T4.3 文档回写 | **完成 ✅** | 本 README + tasks.md（根 `README.md` 的功能章节与版本历史仍待补一行「图片预览」，属范围外待办） |
+| T4.2 手工清单（5 条） | **完成 ✅ 5/5** | 2026-10-08 用户逐条肉眼确认：①PNG 出图 ✅ ②`编辑`·`保存` 置灰 ✅ ③SVG 三态（图片·源码·预览）✅ ④markdown 内嵌相对图片（素材 [002 的「配色过程稿（预览素材）」](../002-spec-status-badges/README.md)，3 张 `./assets/design-references/*.png`）✅ ⑤20MB+ 提示「图片过大」✅ |
+| T4.3 文档回写 | **完成 ✅** | 本 README + tasks.md；根 `README.md` 的「图片预览」条目**已于 2026-10-08 补入功能清单与版本历史** ✅ |
 
 ## 硬规则偏离说明
 
@@ -102,4 +115,4 @@ created: 2026-10-08
 |--------|------|------|
 | UI 需求必须配 E2E | **豁免** | 用户「测试的问题我来，肉眼看」（002 起记录，007 显式确认）；本 Spec 沿用同一豁免 |
 | 生成前先读模板 | `.lean-spec/templates/` 只有 `bugfix-template.md`，需求/设计/任务模板**缺失** | 按 007 已成型的房屋风格写作；模板缺失本身记录在此，不静默跳过 |
-| E2E 替代验证 | 纯逻辑单测 + Playwright 复刻量测 + 手工清单 | 与 007 同一套策略；**复刻量测已按替代验证执行完毕（T4.1 ✅）**，手工清单待用户肉眼 |
+| E2E 替代验证 | 纯逻辑单测 + Playwright 复刻量测 + 手工清单 | 与 007 同一套策略；**复刻量测已按替代验证执行完毕（T4.1 ✅）**，**手工清单已由用户逐条肉眼完成（T4.2 = 5/5 ✅）** |

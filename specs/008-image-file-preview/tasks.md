@@ -119,13 +119,15 @@
   - **勘误（本轮实测发现）**：端点路径约定是**相对 `specs/`**（`resolveExistingFile` = `path.resolve(<root>/specs, relPath)`）；首轮 fixture 误用「相对项目根」⇒ 200/413 假 404，改对后 7/7。该约定与 `rawUrl`、markdown 改写、`/file`、目录树**完全一致**，已记入 README
   - 残余：弹窗/右栏两形态下的**观感**（窄高面板里 `max-height` 依赖 `link` 的定高祖先）仍属 T4.2 肉眼范围
 
-- [ ] T4.2 [REQ-3] 手工清单（用户肉眼）—— **待你执行**
+- [x] T4.2 [REQ-3] 手工清单（用户肉眼）—— **完成 ✅ 5/5（2026-10-08）**
   - 1. 树里点 `*.png` → 正文出现图片，不是乱码
   - 2. 图片态下 `编辑`/`保存` 是灰的，点不动
   - 3. 点 `.svg` → 图片；点「源码」→ 只读 XML；点「预览」→ 回到图片
   - 4. markdown 里 `![](./x.png)` 能显示出来
   - 5. 用 20MB 以上图片试一次 → 看到"图片过大"提示而不是裂图
   - 验证：用户逐条反馈
+  - **复看反馈（2026-10-08，用户原话逐条）**：第 1 条 **ok** ✅、第 2 条 **ok** ✅、第 3 条 **ok** ✅、第 5 条 **ok** ✅；第 4 条首轮**缺素材**（仓库里原先没有任何文档内嵌相对路径图片 —— 002/007 都只是 `[design.md](./design.md)` 这类链接）⇒ 补素材后用户复看 **ok** ✅（「验证过了ok的」）⇒ **5/5 全过 ✅**
+  - 第 4 条的素材（已提交进 `specs/002`）：`specs/002-spec-status-badges/README.md` 新增「配色过程稿（预览素材）」一节，内嵌 3 张 `./assets/design-references/*.png`（均已核对为真 PNG，魔数 `89 50 4E 47…`）✅
   - 想先看端点侧效果（不装插件也行）：`node --experimental-strip-types .explore/verify-image-preview.ts` → 打开它打印的 URL
   - **首轮实测反馈（2026-10-08）**：点图片报「文件不存在或不在当前项目内」= HTTP **403/404**。已排查并**排除**：`/file` 与 `/raw` 基准同源（都用 `resolveExistingFile`）、`root=''` 与不传 root 等价（`requestRoot` 把 `''` 当缺省）、`ViewerMain.selected === state.selected`（与文本请求同一个值）、两份产物均含新代码（`lib/index.js` 有 `/raw` + binary 分支，`lib/client.js` 有 `image-wrap`）
   - **该轮暴露的自身缺陷（已修）**：旧文案把「已注册路由的 404（文件没了）」与「未注册路由的 404（宿主仍是旧产物）」**压成同一句**，把一次定位从 0 成本变成一轮往返。现改为携带 HTTP 状态 + 服务端 `code`：**无 `code` 的 404** 直接说「图片端点未就绪（路由不存在）—— 重启后再试」；探针由 HEAD 改 **GET**（HEAD 没有响应体，读不到 `code`，200 时取消 body）；`rawUrl` 改为**省略未知 root**（与 `withRoot` 一致，不再依赖 `requestRoot` 对 `''` 的宽容）
@@ -137,4 +139,14 @@
     - `npm run typecheck` → 干净（无输出）
     - `npm test` → tests **185** / pass **185** / fail **0**（基线 143 全绿，新增 42）
     - `npm run build` → `lib/index.js` **12,522 B**、`lib/client.js` **113,045 B**
-  - 说明：回写的是 `specs/008-image-file-preview/README.md` 与 `tasks.md`；仓库根 `README.md` 的「功能章节 / 版本历史」未改（本轮范围未含），已记入交付报告待办；`specs/002` 无联动改动
+  - 说明：回写的是 `specs/008-image-file-preview/README.md` 与 `tasks.md`；仓库根 `README.md` 的「图片预览」条目**已于 2026-10-08 补入功能清单与版本历史** ✅（原记的"属范围外待办"已消解）；`specs/002` 后续因补第 4 条素材而新增一节（见 T4.2）
+
+---
+
+## 归档（2026-10-08）
+
+- **状态**：`in-progress` → **`complete`** ✅ 完成日期 `2026-10-08`（README frontmatter `completed`）
+- **位置**：保持 `specs/008-image-file-preview/` ✅ **未移动** —— 归档是状态转换 ✅ 移动会打断跨档引用 / Git 历史链接 ✅（沿用本仓库默认）
+- **任务**：**16 / 16 全勾** ✅（T0.1–T0.2 / T1.1–T1.4 / T2.1–T2.3 / T3.1–T3.4 / T4.1–T4.3）
+- **归档时三绿**：`npm run typecheck` 干净 ✅ · `npm test` **271 / 271 / fail 0** ✅ · `npm run build` `lib/index.js` **12,522 B** / `lib/client.js` **139,087 B** ✅（构建后 `git status lib` 为空 ✅ 提交产物与重建逐字节一致 ✅）
+- **遗留（不阻塞归档 ✅，已记录）**：T4.1 的复现脚本 `.explore/verify-image-preview.ts` 与那张 487 B fixture PNG **不在版本控制内**（磁盘保留 ✅ 但新克隆的仓库无法复现该像素级量测 ⚠️）—— 如需可移入 `specs/008-image-file-preview/` 后提交 ✅
