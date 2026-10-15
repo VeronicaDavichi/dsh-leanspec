@@ -7,6 +7,33 @@ export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error' | 'disconnected'
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 export type ViewMode = 'preview' | 'edit' | 'source'
 
+/**
+ * Everything the panel holds about **one project root**.
+ *
+ * Parked in {@link ViewerState.projects} when the workspace changes, so that
+ * (a) the next root can never render the previous root's file, and (b) coming
+ * back restores the selection, the expansion and an unsaved draft instead of
+ * silently dropping them (bug 2026-10-08 → specs/009).
+ */
+export interface ProjectSlice {
+  loadStatus: LoadStatus
+  loadError: string | undefined
+  present: boolean
+  specs: string[]
+  files: string[]
+  dirs: string[]
+  expanded: Set<string>
+  statusByDir: Record<string, SpecStatus>
+  selected: string | null
+  mode: ViewMode
+  content: string
+  draft: string
+  loadedKey: string | null
+  saving: boolean
+  saveStatus: SaveStatus
+  saveError: string | undefined
+}
+
 export interface ViewerState {
   loadStatus: LoadStatus
   loadError?: string
@@ -80,6 +107,14 @@ export interface ViewerState {
    */
   projectRoot: string
   projectReady: boolean
+  /**
+   * Selection/draft memory per project root, most recently used last.
+   *
+   * A workspace switch is not a panel close: the user's place in root A must
+   * survive a detour through root B (bug 2026-10-08 → specs/009). Bounded by
+   * {@link PROJECT_MEMORY_LIMIT} so a long session cannot grow it forever.
+   */
+  projects: Record<string, ProjectSlice>
 }
 
 export type ViewerAction =
@@ -136,6 +171,132 @@ export const initialViewerState: ViewerState = {
   dragging: false,
   projectRoot: '',
   projectReady: false,
+  projects: {},
+}
+
+/** How many project roots keep their selection/draft; the oldest is evicted. */
+export const PROJECT_MEMORY_LIMIT = 8
+
+/** A root with nothing loaded yet — what a workspace switch lands on. */
+export const emptyProjectSlice: ProjectSlice = {
+  loadStatus: 'idle',
+  loadError: undefined,
+  present: false,
+  specs: [],
+  files: [],
+  dirs: [],
+  expanded: new Set<string>(),
+  statusByDir: {},
+  selected: null,
+  mode: 'preview',
+  content: '',
+  draft: '',
+  loadedKey: null,
+  saving: false,
+  saveStatus: 'idle',
+  saveError: undefined,
+}
+
+/** The root-scoped half of the state, as a value that can be parked. */
+export function sliceOfProject(state: ViewerState): ProjectSlice {
+  return {
+    loadStatus: state.loadStatus,
+    loadError: state.loadError,
+    present: state.present,
+    specs: state.specs,
+    files: state.files,
+    dirs: state.dirs,
+    expanded: state.expanded,
+    statusByDir: state.statusByDir,
+    selected: state.selected,
+    mode: state.mode,
+    content: state.content,
+    draft: state.draft,
+    loadedKey: state.loadedKey,
+    saving: state.saving,
+    saveStatus: state.saveStatus,
+    saveError: state.saveError,
+  }
+}
+
+/**
+ * Put a slice back, keeping every UI preference (split, surface, pin, drag).
+ *
+ * The slice always carries `loadError` / `saveError` explicitly — including as
+ * `undefined` — so a clean slice cannot inherit the previous root's error.
+ */
+export function withProjectSlice(state: ViewerState, slice: ProjectSlice): ViewerState {
+  return { ...state, ...slice }
+}
+
+/**
+ * Handle a root announcement from the session header (specs/009).
+ *
+ * Three cases, and the order matters:
+ *
+ * 1. Same root, same readiness → the very same object, so a no-op announcement
+ *    does not re-render the tree.
+ * 2. Same root, different readiness → only `projectReady` moves. `ready` flips
+ *    `false → true` on every mount, and mistaking that for a workspace change
+ *    would throw away the user's selection and draft.
+ * 3. Different root → park the outgoing slice and restore the incoming one (or
+ *    an empty one). This is what stops root A's file from rendering, and being
+ *    saved, under root B.
+ */
+export function switchProject(state: ViewerState, root: string, ready: boolean): ViewerState {
+  if (state.projectRoot === root) {
+    return state.projectReady === ready ? state : { ...state, projectReady: ready }
+  }
+  // An unresolved root ('') is not a workspace: leave it out of the memory, but
+  // still park a real root on the way out, so a transient `A → '' → A` (the
+  // workspace list taking a moment to report) does not cost the user their place.
+  const projects = state.projectRoot === ''
+    ? state.projects
+    : rememberProject(state.projects, state.projectRoot, sliceOfProject(state), root)
+  const restored = root === '' ? undefined : state.projects[root]
+  return {
+    ...withProjectSlice(state, restored === undefined ? emptyProjectSlice : refreshedSlice(restored)),
+    projects,
+    projectRoot: root,
+    projectReady: ready,
+  }
+}
+
+/**
+ * A parked slice, minus transient save state.
+ *
+ * A switch ends whatever the save chip was saying: a restored `saving: true`
+ * could otherwise stick forever if its request settled while another root was
+ * on screen.
+ */
+function refreshedSlice(slice: ProjectSlice): ProjectSlice {
+  return { ...slice, saving: false, saveStatus: 'idle', saveError: undefined }
+}
+
+/**
+ * Insert (most-recent-wins) and evict beyond {@link PROJECT_MEMORY_LIMIT}.
+ *
+ * `keep` is the root being restored in the same switch. It is never the entry
+ * evicted: parking the outgoing root can push the map one over the limit, and
+ * the oldest entry would otherwise be the very slice we are about to show.
+ */
+function rememberProject(
+  projects: Record<string, ProjectSlice>,
+  root: string,
+  slice: ProjectSlice,
+  keep: string,
+): Record<string, ProjectSlice> {
+  // Re-inserting moves the key to the end: plain object keys keep insertion
+  // order, which makes the last key the most recently used root.
+  const next: Record<string, ProjectSlice> = { ...projects }
+  delete next[root]
+  next[root] = slice
+  for (const stale of Object.keys(next)) {
+    if (Object.keys(next).length <= PROJECT_MEMORY_LIMIT) break
+    if (stale === keep) continue
+    delete next[stale]
+  }
+  return next
 }
 
 /**
@@ -301,9 +462,7 @@ export function reduceViewer(state: ViewerState, action: ViewerAction): ViewerSt
       // while the splitter is held, and it lives outside this component.
       return state.dragging === action.dragging ? state : { ...state, dragging: action.dragging }
     case 'set-project':
-      return state.projectRoot === action.root && state.projectReady === action.ready
-        ? state
-        : { ...state, projectRoot: action.root, projectReady: action.ready }
+      return switchProject(state, action.root, action.ready)
     default:
       return state
   }

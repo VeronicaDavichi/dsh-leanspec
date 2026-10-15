@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  PROJECT_MEMORY_LIMIT,
   hasTreeData,
   initialViewerState,
   needsFileLoad,
   reduceViewer,
   selectView,
+  type ViewerState,
 } from '../src/client/viewer-state.ts'
 
 test('project without LeanSpec shows a banner and no file tree', () => {
@@ -245,7 +247,13 @@ test('the expanded set survives every other action (the surface-switch bug)', ()
   // The popup and the tab render one at a time, so anything the tree keeps in
   // component state is destroyed by a switch. This pins the set in the store:
   // navigating, editing, saving, reloading and re-projecting must not drop it.
-  let state = reduceViewer(initialViewerState, { type: 'toggle-dir', path: '001-alpha' })
+  //
+  // 2026-10-08 (specs/009 订正): "re-projecting" here means the **same** root
+  // being announced again — which is what a remount does, including the
+  // `ready` flip. A *different* root is a workspace switch and deliberately
+  // starts from that root's own slice (see the specs/009 cases below).
+  let state = reduceViewer(initialViewerState, { type: 'set-project', root: '/repo', ready: true })
+  state = reduceViewer(state, { type: 'toggle-dir', path: '001-alpha' })
   state = reduceViewer(state, { type: 'toggle-dir', path: '001-alpha/design' })
   for (const action of [
     { type: 'select', path: '001-alpha/design.md' },
@@ -257,6 +265,8 @@ test('the expanded set survives every other action (the surface-switch bug)', ()
     { type: 'set-split', split: 300 },
     { type: 'set-surface', surface: 'tab' },
     { type: 'set-popup-open', open: true },
+    { type: 'set-project', root: '/repo', ready: true },
+    { type: 'set-project', root: '/repo', ready: false },
     { type: 'set-project', root: '/repo', ready: true },
     { type: 'load-start' },
     { type: 'load-success', files: ['001-alpha/design.md'], present: true },
@@ -403,4 +413,140 @@ test('a first load with nothing to show still gets the loading state', () => {
   assert.equal(selectView(failed).showTree, false)
   assert.equal(hasTreeData(failed), false)
   assert.equal(selectView(failed).banner, 'boom')
+})
+
+/* -------------------------------------------------------------------------
+ * Workspace switches (specs/009, bug 2026-10-08).
+ *
+ * The store is module-level on purpose (007: popup and tab are one panel), and
+ * that is exactly why a root change must be handled explicitly: without it, root
+ * A's file kept rendering — and could have been saved — under root B.
+ * ---------------------------------------------------------------------- */
+
+/** Root A with a file open, an unsaved draft, an expanded dir and a badge. */
+function openInRootA(): ViewerState {
+  const key = '001-alpha/README.md\u0000edit'
+  let state = reduceViewer(initialViewerState, { type: 'set-project', root: '/repo-a', ready: true })
+  state = reduceViewer(state, { type: 'load-start' })
+  state = reduceViewer(state, {
+    type: 'load-success',
+    specs: ['001-alpha'],
+    files: ['001-alpha/README.md'],
+    dirs: ['001-alpha'],
+    present: true,
+    statusByDir: { '001-alpha': 'in-progress' },
+  })
+  state = reduceViewer(state, { type: 'toggle-dir', path: '001-alpha' })
+  state = reduceViewer(state, { type: 'select', path: '001-alpha/README.md' })
+  state = reduceViewer(state, { type: 'file-loaded', content: '# alpha\n', key })
+  return reduceViewer(state, { type: 'edit', draft: '# alpha\n\nunsaved\n' })
+}
+
+test('a workspace switch never carries the old root into the new preview (A1/A2/A5/A6)', () => {
+  const a = openInRootA()
+  assert.equal(a.selected, '001-alpha/README.md', 'precondition: A has a file open')
+  assert.equal(a.draft, '# alpha\n\nunsaved\n')
+
+  const b = reduceViewer(a, { type: 'set-project', root: '/repo-b', ready: true })
+
+  assert.equal(b.projectRoot, '/repo-b')
+  assert.equal(b.selected, null, 'A1: no stale selection under B')
+  assert.equal(b.content, '', 'A1: no stale content under B')
+  assert.equal(b.draft, '', 'A1: the draft does not leak either')
+  assert.equal(b.loadedKey, null, 'A1: nothing is "already loaded" under B')
+  assert.deepEqual(b.specs, [], "A2: A's spec list is not B's")
+  assert.deepEqual(b.files, [])
+  assert.deepEqual(b.dirs, [])
+  assert.deepEqual(b.statusByDir, {})
+  assert.equal(b.present, false)
+  assert.equal(b.loadStatus, 'idle', 'B starts from scratch and fetches its own tree')
+  assert.deepEqual([...b.expanded], [], 'A2: the expansion belongs to A')
+
+  // A5: the old key is no longer "loaded", so the file effect re-fetches.
+  assert.equal(needsFileLoad(b, '001-alpha/README.md\u0000edit', true), true)
+  // A6: no selection under B ⇒ the save entry (`textKey === null`) is unreachable.
+  assert.equal(b.selected, null)
+})
+
+test('returning to a root restores its selection, draft and expansion (A3)', () => {
+  const a = openInRootA()
+  const b = reduceViewer(a, { type: 'set-project', root: '/repo-b', ready: true })
+  const back = reduceViewer(b, { type: 'set-project', root: '/repo-a', ready: true })
+
+  assert.equal(back.selected, '001-alpha/README.md', 'A3: the selection comes back')
+  assert.equal(back.content, '# alpha\n', 'A3: the loaded content comes back without a re-fetch')
+  assert.equal(back.draft, '# alpha\n\nunsaved\n', 'A3: the unsaved draft is not lost')
+  assert.equal(back.loadedKey, '001-alpha/README.md\u0000edit')
+  assert.deepEqual([...back.expanded], ['001-alpha'])
+  assert.deepEqual(back.statusByDir, { '001-alpha': 'in-progress' })
+  assert.equal(back.present, true)
+  assert.equal(back.saveStatus, 'idle', 'A3: a switch ends the save chip, never a stuck "saving"')
+  assert.equal(back.saving, false)
+})
+
+test('the same root only moves readiness — never a wipe (A4)', () => {
+  const a = openInRootA()
+  const same = reduceViewer(a, { type: 'set-project', root: '/repo-a', ready: true })
+  assert.equal(Object.is(same, a), true, 'same root + same ready → the very same object')
+
+  const flapped = reduceViewer(a, { type: 'set-project', root: '/repo-a', ready: false })
+  assert.equal(Object.is(flapped, a), false, 'readiness moved, so a new object')
+  assert.equal(flapped.projectRoot, '/repo-a')
+  assert.equal(flapped.selected, a.selected, 'A4: a readiness flip never drops the selection')
+  assert.equal(flapped.draft, a.draft, 'A4: …nor the draft')
+  assert.equal(flapped.loadedKey, a.loadedKey)
+})
+
+test('UI preferences survive a workspace switch (A7)', () => {
+  let state = openInRootA()
+  state = reduceViewer(state, { type: 'set-split', split: 372 })
+  state = reduceViewer(state, { type: 'set-popup-open', open: true })
+  state = reduceViewer(state, { type: 'set-pinned', pinned: true })
+  state = reduceViewer(state, { type: 'set-dragging', dragging: true })
+
+  const b = reduceViewer(state, { type: 'set-project', root: '/repo-b', ready: true })
+
+  assert.equal(b.split, 372, 'A7: the split is a panel preference, not project data')
+  assert.equal(b.surface, 'popup')
+  assert.equal(b.popupOpen, true)
+  assert.equal(b.pinned, true)
+  assert.equal(b.dragging, true)
+})
+
+test('the per-root memory is bounded and never evicts the root being restored (A8)', () => {
+  let state = openInRootA()
+  // Fill exactly to the limit: A plus LIMIT-1 more roots.
+  for (let i = 0; i < PROJECT_MEMORY_LIMIT; i += 1) {
+    state = reduceViewer(state, { type: 'set-project', root: `/repo-${i}`, ready: true })
+  }
+  assert.equal(Object.keys(state.projects).length, PROJECT_MEMORY_LIMIT, 'A8: bounded at the limit')
+
+  // Parking the current root inserts one more entry; A must survive it.
+  const back = reduceViewer(state, { type: 'set-project', root: '/repo-a', ready: true })
+  assert.equal(back.selected, '001-alpha/README.md', 'A8: A survived a full memory')
+  assert.equal(Object.keys(back.projects).length <= PROJECT_MEMORY_LIMIT, true, 'A8: still bounded')
+  assert.equal('/repo-a' in back.projects, true, 'A8: the restored root is never the evicted one')
+
+  // And a second round trip still restores A.
+  const away = reduceViewer(back, { type: 'set-project', root: '/repo-x', ready: true })
+  const again = reduceViewer(away, { type: 'set-project', root: '/repo-a', ready: true })
+  assert.equal(again.selected, '001-alpha/README.md', 'A8: A is remembered round after round')
+})
+
+test('an unresolved root (empty string) is never parked, and A survives it (A9)', () => {
+  const a = openInRootA()
+  const unresolved = reduceViewer(a, { type: 'set-project', root: '', ready: false })
+
+  assert.equal(unresolved.projectRoot, '', 'the panel follows the unresolved root')
+  assert.equal(unresolved.selected, null, 'and shows nothing from A while unresolved')
+  assert.equal(Object.keys(unresolved.projects).length, 1, "A's slice was parked on the way out")
+  assert.equal('' in unresolved.projects, false, 'A9: the empty root never becomes an entry')
+
+  const again = reduceViewer(unresolved, { type: 'set-project', root: '', ready: false })
+  assert.equal(Object.is(again, unresolved), true, 'A9: a repeated announcement is a no-op')
+
+  // A transient `A → '' → A` must not cost the user their place.
+  const back = reduceViewer(again, { type: 'set-project', root: '/repo-a', ready: true })
+  assert.equal(back.selected, '001-alpha/README.md', 'A9: A comes back from an unresolved blip')
+  assert.equal(back.draft, '# alpha\n\nunsaved\n')
 })
