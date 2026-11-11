@@ -35,7 +35,7 @@ DeepSeek Harness Web UI 插件：在会话标题栏打开当前项目的 `specs/
 
 配色跟随 Harness Web UI 主题（含明暗切换）。
 
-针对 DeepSeek Harness **0.1.7-rc.2** 的 Web profile。其他版本请自行核对扩展点是否仍可用。
+针对 DeepSeek Harness **0.2.2-rc.1** 的 Web profile（会话头部插槽与右栏 tab 契约已在该版本核实）。其他版本请自行核对扩展点是否仍可用。
 
 ---
 
@@ -105,7 +105,7 @@ DeepSeek Harness Web UI 插件：在会话标题栏打开当前项目的 `specs/
 dsh plugin --profile web add dsh-leanspec
 ```
 
-升级或固定版本时，用目标版本重装即可（例如 `dsh plugin --profile web add dsh-leanspec@0.2.0`）。
+升级或固定版本时，用目标版本重装即可（例如 `dsh plugin --profile web add dsh-leanspec@0.2.1`）。
 
 ### 源码安装（开发）
 
@@ -129,13 +129,13 @@ dsh plugin --profile web add /absolute/path/to/dsh-leanspec
 不克隆到本地，直接让 profile 从 GitHub 拉取固定 tag：
 
 ```sh
-dsh plugin --profile web add github:VeronicaDavichi/dsh-leanspec#v0.2.0
+dsh plugin --profile web add github:VeronicaDavichi/dsh-leanspec#v0.2.1
 ```
 
 等价写法：
 
 ```sh
-dsh plugin --profile web add git+https://github.com/VeronicaDavichi/dsh-leanspec.git#v0.2.0
+dsh plugin --profile web add git+https://github.com/VeronicaDavichi/dsh-leanspec.git#v0.2.1
 ```
 
 pnpm 10 可能要求允许该包的构建脚本。若安装时提示 blocked，按终端说明把对应 key 写入 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`，再执行一次上面的 `dsh plugin add`。Git 安装同样是开发/试用路径。
@@ -172,9 +172,18 @@ dsh plugin --profile web remove dsh-leanspec
 
 ## 📝 版本历史
 
+### v0.2.1 (2026-11-11)
+
+**发布修正**
+
+- ✅ `dsh.client.inject` 改为真实的宿主 UI 包：`@deepseek-ai/dsh-client-ui-conversation`（会话标题栏 utilities 座位，Session log 旁）与 `@deepseek-ai/dsh-client-ui-sidebar-right`（可选右栏 tab）
+- ✅ `marked` 移到 `devDependencies`（`lib/client.js` 已内联，宿主入口零引用）
+- ✅ 补 `publishConfig.access = public`，仓库只保留 `pnpm-lock.yaml`
+- ✅ README 增加 npm 安装方式，源码 / Git 安装标注为开发路径
+
 ### v0.2.0 (2026-10-08)
 
-> 版本号与 DeepSeek Harness **同步**；此前的 `0.2.1` / `0.2.0` / `0.1.0` 记录已并入本条，不再单列。
+> 版本号与 DeepSeek Harness **同步**；旧版的 `0.2.1` / `0.2.0` / `0.1.0` 记录已并入本条，不再单列。本次发布的 `0.2.1` 见上一节。
 
 **面板与形态**
 

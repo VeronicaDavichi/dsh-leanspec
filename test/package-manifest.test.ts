@@ -4,7 +4,7 @@ import { test } from 'node:test'
 
 /**
  * The release contract for the published package. These assertions encode the
- * packaging fixes made for the 0.2.0 npm release; they are not runtime tests.
+ * packaging fixes made for the 0.2.1 npm release; they are not runtime tests.
  *
  * `dsh.client.inject` names the host UI packages whose seats this plugin fills.
  * In DeepSeek Harness 0.2.2-rc.1 the conversation package registers the
