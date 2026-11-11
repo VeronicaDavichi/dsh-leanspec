@@ -6,6 +6,19 @@
 > history (listed as 0.2.1 / 0.2.0 / 0.1.0 in the README before 2026-10-08);
 > the README carries the full, current list.
 
+### Packaging fixes before the npm release (2026-11-11)
+
+- `dsh.client.inject` now names the host UI packages that own the seats this
+  plugin fills: `@deepseek-ai/dsh-client-ui-conversation` (the session header
+  utilities beside Session log) and `@deepseek-ai/dsh-client-ui-sidebar-right`
+  (the optional right-sidebar tab). Verified against DeepSeek Harness
+  0.2.2-rc.1; the previous `@deepseek-ai/dsh-client-runtime` name is not a
+  package in that release.
+- `marked` moved to `devDependencies`: the shipped `lib/client.js` already
+  inlines it, and the Host entry (`lib/index.js`) never imports it.
+- Added `publishConfig.access = public`, and kept `pnpm-lock.yaml` as the only
+  lockfile.
+
 ### Origin: dsh-openspec (kept for traceability)
 
 - Add a DeepSeek Harness Web UI plugin that opens the current project's `openspec/` directory from the session header.

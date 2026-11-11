@@ -97,7 +97,17 @@ DeepSeek Harness Web UI 插件：在会话标题栏打开当前项目的 `specs/
 
 需要本机已能运行 `dsh`，并且使用 **web** profile（`dsh web` 或 `dsh --profile web`）。
 
-### 源码安装
+### npm 安装（推荐）
+
+发布路径：profile 直接从 npm registry 装已发布版本，不依赖本地源码目录。
+
+```sh
+dsh plugin --profile web add dsh-leanspec
+```
+
+升级或固定版本时，用目标版本重装即可（例如 `dsh plugin --profile web add dsh-leanspec@0.2.0`）。
+
+### 源码安装（开发）
 
 先把仓库克隆到本地：
 
@@ -112,11 +122,11 @@ cd dsh-leanspec
 dsh plugin --profile web add /absolute/path/to/dsh-leanspec
 ```
 
-这是本地 `link:` 安装：profile 会指向这个目录，**目录要一直留着**，删掉或挪走后插件会加载失败。
+这是本地 `link:` 安装：profile 会指向这个目录，**目录要一直留着**，删掉或挪走后插件会加载失败。适合边改代码边调试，不要作为发布方式。
 
-### Git 安装
+### Git 安装（开发）
 
-不克隆到本地，直接让 profile 从 GitHub 拉取：
+不克隆到本地，直接让 profile 从 GitHub 拉取固定 tag：
 
 ```sh
 dsh plugin --profile web add github:VeronicaDavichi/dsh-leanspec#v0.2.0
@@ -128,7 +138,7 @@ dsh plugin --profile web add github:VeronicaDavichi/dsh-leanspec#v0.2.0
 dsh plugin --profile web add git+https://github.com/VeronicaDavichi/dsh-leanspec.git#v0.2.0
 ```
 
-pnpm 10 可能要求允许该包的构建脚本。若安装时提示 blocked，按终端说明把对应 key 写入 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`，再执行一次上面的 `dsh plugin add`。
+pnpm 10 可能要求允许该包的构建脚本。若安装时提示 blocked，按终端说明把对应 key 写入 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`，再执行一次上面的 `dsh plugin add`。Git 安装同样是开发/试用路径。
 
 ### 启动
 
