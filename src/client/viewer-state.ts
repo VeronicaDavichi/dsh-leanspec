@@ -1,6 +1,6 @@
 import { isImagePath } from '../media.ts'
 import { parseSpecStatus, type SpecStatus } from '../spec-status.ts'
-import { SPLIT_DEFAULT } from './surface.ts'
+import { PANEL_HEIGHT, PANEL_WIDTH, SPLIT_DEFAULT, type PanelSize } from './surface.ts'
 import type { Surface } from './tab-surface.ts'
 
 export type LoadStatus = 'idle' | 'loading' | 'ready' | 'error' | 'disconnected'
@@ -65,6 +65,16 @@ export interface ViewerState {
    * disagree about it (design.md §3), and a surface switch keeps it (REQ-3.4).
    */
   split: number
+  /**
+   * Popover size in px (specs/010).
+   *
+   * A UI preference, exactly like {@link split}, and deliberately **not** part
+   * of {@link ProjectSlice}: the user asked for one size across every session
+   * and project, so switching workspaces must not restore another root's size.
+   * It also feeds `decideSurface`, so a smaller popover can be used in a
+   * narrower window.
+   */
+  panel: PanelSize
   /**
    * Which surface owns the panel right now.
    *
@@ -138,6 +148,7 @@ export type ViewerAction =
   | { type: 'save-success' }
   | { type: 'save-error'; error: string }
   | { type: 'set-split'; split: number }
+  | { type: 'set-panel'; width: number; height: number }
   | { type: 'set-surface'; surface: Surface }
   | { type: 'set-popup-open'; open: boolean }
   | { type: 'set-pinned'; pinned: boolean }
@@ -165,6 +176,7 @@ export const initialViewerState: ViewerState = {
   saveStatus: 'idle',
   loadedKey: null,
   split: SPLIT_DEFAULT,
+  panel: { width: PANEL_WIDTH, height: PANEL_HEIGHT },
   surface: 'popup',
   popupOpen: false,
   pinned: false,
@@ -435,6 +447,12 @@ export function reduceViewer(state: ViewerState, action: ViewerAction): ViewerSt
       }
     case 'set-split':
       return { ...state, split: action.split }
+    case 'set-panel': {
+      // Same-value writes return the very same object: a drag emits one action
+      // per pointer event, and re-rendering on an unchanged size is pure churn.
+      if (state.panel.width === action.width && state.panel.height === action.height) return state
+      return { ...state, panel: { width: action.width, height: action.height } }
+    }
     case 'set-surface':
       // Moving to the tab dismisses the popover first (REQ-3.1); moving back to
       // the popup leaves the reopen request to 'set-popup-open'.

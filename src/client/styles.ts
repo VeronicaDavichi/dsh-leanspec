@@ -36,11 +36,12 @@ export const LEANSPEC_STYLES = `
   z-index: 40;
   display: flex;
   flex-direction: column;
-  /* T3.3 / REQ-2.1: 1040x640, capped so it can never leave the viewport. The
-     anchor is the popover's own top edge, injected inline by the header; the
-     fallback covers the first paint, before anything has been measured. */
-  width: min(1040px, calc(100vw - 48px));
-  height: min(640px, calc(100vh - var(--anchor, 48px) - 24px));
+  /* T3.3 / REQ-2.1 + specs/010: the size is the user's, injected as custom
+     properties by the header; the fallbacks are the 1040x640 defaults and only
+     apply before anything is measured or when no size was injected. The
+     viewport term stays last so a stored size can never leave the window. */
+  width: min(var(--panel-w, 1040px), calc(100vw - 48px));
+  height: min(var(--panel-h, 640px), calc(100vh - var(--anchor, 48px) - 24px));
   overflow: hidden;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
@@ -48,6 +49,44 @@ export const LEANSPEC_STYLES = `
   color: var(--dsw-alias-label-primary);
   box-shadow: 0 16px 40px var(--dsw-alias-bg-mask-2);
   font-family: var(--dsw-font-family);
+}
+
+/* Corner resize handle (specs/010). Transparent hot zone, one diagonal hint
+   line drawn with a gradient so it follows the theme without an icon asset.
+   touch-action: none keeps a touch drag from scrolling the page instead. */
+.dsh-leanspec-resize {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  /* A drag must resize the box, never select text or start a native drag. */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* An L-shaped corner bracket: two edges of the box, so the grip reads as
+   "this corner moves" instead of a decorative diagonal that a light theme
+   swallows (found while demoing, 2026-11-26). */
+.dsh-leanspec-resize::before {
+  content: '';
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--dsw-alias-label-tertiary);
+  border-bottom: 2px solid var(--dsw-alias-label-tertiary);
+  border-bottom-right-radius: 2px;
+}
+.dsh-leanspec-resize:hover::before,
+.dsh-leanspec-resize:focus-visible::before {
+  border-color: var(--dsw-alias-label-secondary);
+}
+.dsh-leanspec-resize:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: -2px;
 }
 
 /* Both exits put a fixed switch strip above one panel, so the panel takes the

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Resizable popover (specs/010)
+
+- The popover now has a bottom-right corner handle: drag to change width and
+  height together (600×420 floor, viewport ceiling), double-click to reset to
+  1040×640, arrow keys for a 16px step.
+- The size persists in `localStorage['leanspec.panel']` and is **shared by every
+  session and project**, not parked per workspace.
+- `decideSurface` reads the user-set size, so a smaller popover can open in a
+  narrower window; the untouched default keeps 007's 1088×712 boundary exactly.
+- The right-sidebar tab is unaffected: its width stays the host pane's.
+
 ## 0.2.1 (2026-11-11)
 
 ### Packaging fixes

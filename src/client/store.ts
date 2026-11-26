@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
-import { SPLIT_STORAGE_KEY, readStoredSplit } from './surface.ts'
+import {
+  PANEL_STORAGE_KEY,
+  SPLIT_STORAGE_KEY,
+  readStoredPanel,
+  readStoredSplit,
+  type PanelSize,
+} from './surface.ts'
 import {
   initialViewerState,
   reduceViewer,
@@ -80,6 +86,33 @@ export function loadPersistedSplit(): number {
 export function persistSplit(value: number): void {
   try {
     window.localStorage.setItem(SPLIT_STORAGE_KEY, String(value))
+  } catch {
+    // Private mode / disabled storage: keep the in-memory value only.
+  }
+}
+
+/**
+ * Last persisted popover size, or the default when storage is absent or blocked.
+ *
+ * One key for the whole browser profile on purpose (specs/010 D-5): the size is
+ * a property of the popover, not of a session or a project.
+ */
+export function loadPersistedPanel(): PanelSize {
+  try {
+    return readStoredPanel(window.localStorage.getItem(PANEL_STORAGE_KEY))
+  } catch {
+    // No `window`, or storage denied by policy.
+    return readStoredPanel(null)
+  }
+}
+
+/** Persist the popover size. A blocked `localStorage` must not break the drag. */
+export function persistPanel(value: PanelSize): void {
+  try {
+    window.localStorage.setItem(
+      PANEL_STORAGE_KEY,
+      JSON.stringify({ width: value.width, height: value.height }),
+    )
   } catch {
     // Private mode / disabled storage: keep the in-memory value only.
   }

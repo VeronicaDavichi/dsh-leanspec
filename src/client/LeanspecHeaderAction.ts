@@ -1,4 +1,14 @@
-import { Fragment, createElement, useEffect, useRef, useState, type ReactElement } from 'react'
+import {
+  Fragment,
+  createElement,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactElement,
+  type Ref,
+} from 'react'
 import { LeanspecViewer } from './LeanspecViewer.ts'
 import {
   fallbackSessions,
@@ -8,9 +18,17 @@ import {
   type WorkspaceListSnapshot,
 } from './project-root.ts'
 import { ensureLeanspecStyles } from './styles.ts'
-import { anchorBottomFromTrigger, decideSurface } from './surface.ts'
+import {
+  PANEL_DEFAULT,
+  PANEL_STEP,
+  anchorBottomFromTrigger,
+  clampPanel,
+  decideSurface,
+  panelFromDrag,
+  type PanelSize,
+} from './surface.ts'
 import { createSurfaceFollower, type SurfaceFollower } from './surface-follow.ts'
-import { viewerStore, useViewerStore } from './store.ts'
+import { loadPersistedPanel, persistPanel, viewerStore, useViewerStore } from './store.ts'
 import {
   leanspecTabIsOpen,
   subscribeTabCapability,
@@ -47,6 +65,10 @@ export function LeanspecHeaderAction(props: LeanspecHeaderProps = {}): ReactElem
   const [anchor, setAnchor] = useState<number | undefined>(undefined)
   const rootRef = useRef<{ contains: (node: Node | null) => boolean } | null>(null)
   const followerRef = useRef<SurfaceFollower | null>(null)
+  /** The dialog element, read at `pointerdown` so a drag starts from what is on screen. */
+  const popoverRef = useRef<HTMLDivElement | null>(null)
+  /** Live drag: where the pointer started and how big the box was then. */
+  const resizeRef = useRef<{ startX: number; startY: number; size: PanelSize } | null>(null)
   const useWorkspaces = props.useWorkspaces ?? fallbackWorkspaces
   const useSessions = props.useSessions ?? fallbackSessions
   const useSidebarMounted = props.useSidebarMounted
@@ -74,6 +96,16 @@ export function LeanspecHeaderAction(props: LeanspecHeaderProps = {}): ReactElem
 
   useEffect(() => {
     ensureLeanspecStyles()
+  }, [])
+
+  // Restore the persisted popover size once (REQ-4.1). One key for every
+  // session and project (D-5); `readStoredPanel` already fell back to the
+  // default for anything unusable.
+  useEffect(() => {
+    const stored = loadPersistedPanel()
+    const current = viewerStore.getState().panel
+    if (stored.width === current.width && stored.height === current.height) return
+    dispatch({ type: 'set-panel', width: stored.width, height: stored.height })
   }, [])
 
   // The tab surface can become available after this component mounted (the
@@ -146,7 +178,90 @@ export function LeanspecHeaderAction(props: LeanspecHeaderProps = {}): ReactElem
     sidebarMountedRef.current = sidebarMounted
   }, [sidebarMounted])
 
-  const decideNow = (): Surface => decideSurface({ ...measureViewport(), anchorBottom: measureAnchor() })
+  /**
+   * Everything a size clamp needs, measured now (specs/010).
+   *
+   * Same numbers the surface decision and the CSS cap use: the viewport, the
+   * live anchor and the documented edge gap.
+   */
+  const panelLimits = (): { viewportWidth: number; viewportHeight: number; anchorBottom: number } => ({
+    ...measureViewport(),
+    anchorBottom: measureAnchor(),
+  })
+
+  /** The size the popover should start a drag from: what is actually rendered. */
+  const renderedPanel = (): PanelSize => {
+    const current = viewerStore.getState().panel
+    const rect = popoverRef.current?.getBoundingClientRect()
+    if (rect === undefined || rect.width <= 0 || rect.height <= 0) return current
+    return { width: rect.width, height: rect.height }
+  }
+
+  const onResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    // Without this Chromium may start a native text/element drag from the
+    // handle, which fires `dragstart` and then `pointercancel` — the drag would
+    // stop after the first move (found live, 2026-11-26).
+    event.preventDefault()
+    resizeRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      size: renderedPanel(),
+    }
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // An older host may refuse capture; the handle's own move events still
+      // work, the drag just ends when the pointer leaves it.
+    }
+    dispatch({ type: 'set-dragging', dragging: true })
+  }
+
+  const onResizePointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const drag = resizeRef.current
+    if (drag === null) return
+    const next = panelFromDrag(
+      drag.size,
+      event.clientX - drag.startX,
+      event.clientY - drag.startY,
+      panelLimits(),
+    )
+    dispatch({ type: 'set-panel', width: next.width, height: next.height })
+  }
+
+  /** Ends a drag and persists exactly once, on release (REQ-1.3). */
+  const onResizeEnd = (): void => {
+    if (resizeRef.current === null) return
+    resizeRef.current = null
+    dispatch({ type: 'set-dragging', dragging: false })
+    persistPanel(viewerStore.getState().panel)
+  }
+
+  const onResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+    const stepX = event.key === 'ArrowLeft' ? -PANEL_STEP : event.key === 'ArrowRight' ? PANEL_STEP : 0
+    const stepY = event.key === 'ArrowUp' ? -PANEL_STEP : event.key === 'ArrowDown' ? PANEL_STEP : 0
+    if (stepX === 0 && stepY === 0) return
+    event.preventDefault()
+    const current = viewerStore.getState().panel
+    const next = clampPanel(
+      { width: current.width + stepX, height: current.height + stepY },
+      panelLimits(),
+    )
+    dispatch({ type: 'set-panel', width: next.width, height: next.height })
+    // A key has no "release", so the value is durable immediately (REQ-5.2).
+    persistPanel(next)
+  }
+
+  const onResizeReset = (): void => {
+    dispatch({ type: 'set-panel', width: PANEL_DEFAULT.width, height: PANEL_DEFAULT.height })
+    persistPanel(PANEL_DEFAULT)
+  }
+
+  const decideNow = (): Surface => decideSurface({
+    ...measureViewport(),
+    anchorBottom: measureAnchor(),
+    // The size the user left it at (D-4); absent means the 007 default.
+    panel: viewerStore.getState().panel,
+  })
 
   /**
    * Live following (T3.2): one resize subscription, a throttled evaluation, and
@@ -155,7 +270,11 @@ export function LeanspecHeaderAction(props: LeanspecHeaderProps = {}): ReactElem
    */
   useEffect(() => {
     const follower = createSurfaceFollower({
-      measure: () => ({ ...measureViewport(), anchorBottom: measureAnchor() }),
+      measure: () => ({
+        ...measureViewport(),
+        anchorBottom: measureAnchor(),
+        panel: viewerStore.getState().panel,
+      }),
       mounted: () => sidebarMountedRef.current,
       read: () => {
         const current = viewerStore.getState()
@@ -223,6 +342,13 @@ export function LeanspecHeaderAction(props: LeanspecHeaderProps = {}): ReactElem
       projectRoot,
       projectReady,
       anchor,
+      panel: state.panel,
+      popoverRef,
+      onResizePointerDown,
+      onResizePointerMove,
+      onResizeEnd,
+      onResizeKeyDown,
+      onResizeReset,
       onToggle: actions.togglePopover,
       onSwitchToTab: actions.switchToTab,
     }),
@@ -301,6 +427,17 @@ export interface LeanspecHeaderViewProps {
    * the first paint, before anything has been measured.
    */
   anchor?: number
+  /** The size the popover should render at (specs/010). Absent means the CSS default. */
+  panel?: PanelSize
+  /** The dialog element, so a drag can start from the box that is on screen. */
+  popoverRef?: Ref<HTMLDivElement>
+  onResizePointerDown?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  onResizePointerMove?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  /** Pointer release / cancel: end the drag and persist (REQ-1.3). */
+  onResizeEnd?: () => void
+  onResizeKeyDown?: (event: ReactKeyboardEvent<HTMLDivElement>) => void
+  /** Double-click: back to the default size (REQ-5.1). */
+  onResizeReset?: () => void
   onToggle: () => void
   onSwitchToTab: () => void
 }
@@ -316,9 +453,18 @@ export interface LeanspecHeaderViewProps {
 export function LeanspecHeaderView(props: LeanspecHeaderViewProps): ReactElement {
   const disabled = !props.capability.available
   const popover = props.open && props.surface === 'popup'
-  const anchorStyle = props.anchor === undefined
+  // `--anchor` covers the first paint before the button is measured; the panel
+  // variables carry the user's size (specs/010). Nothing is injected at all
+  // when neither is known, which is exactly the pre-010 default.
+  const vars: Record<string, string> = {}
+  if (props.anchor !== undefined) vars['--anchor'] = `${props.anchor}px`
+  if (props.panel !== undefined) {
+    vars['--panel-w'] = `${props.panel.width}px`
+    vars['--panel-h'] = `${props.panel.height}px`
+  }
+  const anchorStyle = Object.keys(vars).length === 0
     ? undefined
-    : ({ '--anchor': `${props.anchor}px` } as unknown as Record<string, string>)
+    : (vars as unknown as Record<string, string>)
   // Only the *reason* gets a row of its own now: the switch button itself moved
   // onto the tree pane's header row (2026-10-08). An empty bar must never show.
   const notices = [
@@ -343,6 +489,7 @@ export function LeanspecHeaderView(props: LeanspecHeaderViewProps): ReactElement
       ? createElement(
         'div',
         {
+          ref: props.popoverRef,
           role: 'dialog',
           'aria-label': 'LeanSpec',
           className: 'dsh-leanspec-popover',
@@ -378,6 +525,25 @@ export function LeanspecHeaderView(props: LeanspecHeaderViewProps): ReactElement
             },
             '右栏 ⧉',
           ),
+        }),
+        // The corner handle (specs/010). A div, not a button: `role="button"`
+        // plus an explicit label is the closest honest mapping — WAI-ARIA has
+        // no two-axis resize role, and a `separator` would announce one axis.
+        createElement('div', {
+          className: 'dsh-leanspec-resize',
+          role: 'button',
+          tabIndex: 0,
+          'aria-label': '调整弹窗大小（方向键调宽高，双击复位）',
+          'data-leanspec-resize': 'true',
+          // Native dragging would cancel the pointer sequence (see the handler).
+          draggable: false,
+          onDragStart: (event: { preventDefault: () => void }) => { event.preventDefault() },
+          onPointerDown: props.onResizePointerDown,
+          onPointerMove: props.onResizePointerMove,
+          onPointerUp: props.onResizeEnd,
+          onPointerCancel: props.onResizeEnd,
+          onKeyDown: props.onResizeKeyDown,
+          onDoubleClick: props.onResizeReset,
         }),
       )
       : null,

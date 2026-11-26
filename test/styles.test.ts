@@ -67,15 +67,35 @@ test('the popover declares both caps in the shipped stylesheet (T3.3, REQ-2.1/2.
 
   // Both axes are capped by the same two numbers the decision uses, and both
   // carry a viewport limit so the box can never leave the window (REQ-2.2).
-  assert.match(popover, /width:\s*min\(1040px,\s*calc\(100vw - 48px\)\)/)
+  // specs/010: the numbers became the *fallback* of a custom property, so a
+  // user-set size wins while an untouched panel still renders 1040x640.
+  assert.match(popover, /width:\s*min\(var\(--panel-w, 1040px\),\s*calc\(100vw - 48px\)\)/)
   assert.match(
     popover,
-    /height:\s*min\(640px,\s*calc\(100vh - var\(--anchor, 48px\) - 24px\)\)/,
+    /height:\s*min\(var\(--panel-h, 640px\),\s*calc\(100vh - var\(--anchor, 48px\) - 24px\)\)/,
   )
   // The tab body fills whatever the host pane gives it instead.
   const tab = /\.dsh-leanspec-tab \{[\s\S]*?\}/.exec(LEANSPEC_STYLES)?.[0] ?? ''
   assert.match(tab, /width:\s*100%/)
   assert.match(tab, /height:\s*100%/)
+})
+
+test('the resize handle is a touch-safe corner grip (specs/010, REQ-6.3)', () => {
+  const handle = /\.dsh-leanspec-resize \{[\s\S]*?\}/.exec(LEANSPEC_STYLES)?.[0] ?? ''
+  assert.notEqual(handle, '', '.dsh-leanspec-resize is defined')
+  assert.match(handle, /position:\s*absolute/)
+  assert.match(handle, /right:\s*1px/)
+  assert.match(handle, /bottom:\s*1px/)
+  assert.match(handle, /cursor:\s*nwse-resize/)
+  // Without this a touch drag scrolls the page instead of resizing.
+  assert.match(handle, /touch-action:\s*none/)
+  // A drag must not select text or start a native drag (it would fire
+  // `dragstart` and cancel the pointer sequence — found live 2026-11-26).
+  assert.match(handle, /user-select:\s*none/)
+  // The visible hint is an L-shaped corner bracket drawn with borders.
+  const hint = /\.dsh-leanspec-resize::before \{[\s\S]*?\}/.exec(LEANSPEC_STYLES)?.[0] ?? ''
+  assert.match(hint, /border-right:/)
+  assert.match(hint, /border-bottom:/)
 })
 
 /**

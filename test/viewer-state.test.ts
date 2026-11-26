@@ -550,3 +550,30 @@ test('an unresolved root (empty string) is never parked, and A survives it (A9)'
   assert.equal(back.selected, '001-alpha/README.md', 'A9: A comes back from an unresolved blip')
   assert.equal(back.draft, '# alpha\n\nunsaved\n')
 })
+
+/* -------------------------------------------------------------------------
+ * specs/010 — the popover size is a UI preference, not project state
+ * ---------------------------------------------------------------------- */
+
+test('set-panel moves the popover size and an unchanged size is the same object', () => {
+  assert.deepEqual(initialViewerState.panel, { width: 1040, height: 640 }, 'default is 007 size')
+
+  const sized = reduceViewer(initialViewerState, { type: 'set-panel', width: 720, height: 480 })
+  assert.deepEqual(sized.panel, { width: 720, height: 480 })
+  assert.equal(
+    reduceViewer(sized, { type: 'set-panel', width: 720, height: 480 }),
+    sized,
+    'a no-op write must not churn renders during a drag',
+  )
+})
+
+test('the popover size survives a workspace switch (REQ-4.2: one size for every session)', () => {
+  let state = reduceViewer(initialViewerState, { type: 'set-panel', width: 760, height: 500 })
+  state = reduceViewer(state, { type: 'set-project', root: '/repo-a', ready: true })
+  state = reduceViewer(state, { type: 'select', path: '001-x/README.md' })
+  state = reduceViewer(state, { type: 'set-project', root: '/repo-b', ready: true })
+  assert.deepEqual(state.panel, { width: 760, height: 500 }, 'the parked slice carries no size')
+
+  state = reduceViewer(state, { type: 'set-project', root: '/repo-a', ready: true })
+  assert.deepEqual(state.panel, { width: 760, height: 500 }, 'and restoring a root does not overwrite it')
+})

@@ -4,8 +4,13 @@ import {
   ANCHOR_FALLBACK,
   ANCHOR_GAP,
   BODY_MIN,
+  PANEL_DEFAULT,
   PANEL_EDGE,
   PANEL_HEIGHT,
+  PANEL_MAX_HEIGHT,
+  PANEL_MAX_WIDTH,
+  PANEL_MIN_HEIGHT,
+  PANEL_MIN_WIDTH,
   PANEL_WIDTH,
   SPLIT_DEFAULT,
   SPLIT_MAX,
@@ -13,8 +18,11 @@ import {
   SURFACE_MIN_HEIGHT,
   SURFACE_MIN_WIDTH,
   anchorBottomFromTrigger,
+  clampPanel,
   clampSplit,
   decideSurface,
+  panelFromDrag,
+  readStoredPanel,
   readStoredSplit,
   splitUpperBound,
 } from '../src/client/surface.ts'
@@ -158,4 +166,109 @@ test('the trigger rect becomes the anchor through one shared +8 gap', () => {
   assert.equal(anchorBottomFromTrigger(undefined), ANCHOR_FALLBACK)
   assert.equal(anchorBottomFromTrigger(Number.NaN), ANCHOR_FALLBACK)
   assert.equal(anchorBottomFromTrigger(-3), ANCHOR_FALLBACK)
+})
+
+/* -------------------------------------------------------------------------
+ * specs/010 — the popover's own size
+ * ---------------------------------------------------------------------- */
+
+const PANEL_LIMITS = { viewportWidth: 1600, viewportHeight: 1000, anchorBottom: 48, edge: 24 }
+
+test('clampPanel holds both axes inside the minimum and the viewport (REQ-2.1/2.2)', () => {
+  assert.deepEqual(
+    clampPanel({ width: 100, height: 100 }, PANEL_LIMITS),
+    { width: PANEL_MIN_WIDTH, height: PANEL_MIN_HEIGHT },
+    'below the minimum snaps up on each axis',
+  )
+  assert.deepEqual(
+    clampPanel({ width: 2000, height: 2000 }, PANEL_LIMITS),
+    { width: 1600 - 2 * PANEL_EDGE, height: 1000 - 48 - PANEL_EDGE },
+    'above the viewport snaps down to the room the viewport has',
+  )
+  assert.deepEqual(
+    clampPanel({ width: 900, height: 500 }, PANEL_LIMITS),
+    { width: 900, height: 500 },
+    'a legal size passes through untouched',
+  )
+  assert.deepEqual(
+    clampPanel({ width: 800.6, height: 500.4 }, PANEL_LIMITS),
+    { width: 801, height: 500 },
+    'and is rounded like the splitter',
+  )
+})
+
+test('a viewport smaller than the minimum keeps the minimum, never a negative box (REQ-2.3)', () => {
+  const tiny = { viewportWidth: 300, viewportHeight: 200, anchorBottom: 48, edge: 24 }
+  assert.deepEqual(
+    clampPanel({ width: 1000, height: 800 }, tiny),
+    { width: PANEL_MIN_WIDTH, height: PANEL_MIN_HEIGHT },
+  )
+  // No measurement at all: only the absolute ceilings can answer.
+  assert.deepEqual(
+    clampPanel(
+      { width: 5000, height: 5000 },
+      { viewportWidth: Number.NaN, viewportHeight: Number.NaN },
+    ),
+    { width: PANEL_MAX_WIDTH, height: PANEL_MAX_HEIGHT },
+  )
+})
+
+test('panelFromDrag adds the pointer delta, then clamps (REQ-1.1)', () => {
+  assert.deepEqual(
+    panelFromDrag({ width: 800, height: 500 }, 100, 50, PANEL_LIMITS),
+    { width: 900, height: 550 },
+  )
+  assert.deepEqual(
+    panelFromDrag({ width: 800, height: 500 }, -1000, -1000, PANEL_LIMITS),
+    { width: PANEL_MIN_WIDTH, height: PANEL_MIN_HEIGHT },
+    'a huge drag cannot cross the floor',
+  )
+  assert.deepEqual(
+    panelFromDrag({ width: 800, height: 500 }, Number.NaN, Number.NaN, PANEL_LIMITS),
+    { width: 800, height: 500 },
+    'a broken delta is no movement, not NaN',
+  )
+})
+
+test('readStoredPanel accepts a real size and refuses everything else (REQ-4.3)', () => {
+  assert.deepEqual(
+    readStoredPanel(JSON.stringify({ width: 900, height: 520 })),
+    { width: 900, height: 520 },
+  )
+  for (const raw of [null, undefined, '', '   ', 'not json', '[]', '{}']) {
+    assert.deepEqual(readStoredPanel(raw), PANEL_DEFAULT, `unusable: ${String(raw)}`)
+  }
+  assert.deepEqual(
+    readStoredPanel('{"width":"900","height":520}'),
+    { width: PANEL_WIDTH, height: 520 },
+    'a non-numeric axis falls back alone; the other one survives',
+  )
+  assert.deepEqual(
+    readStoredPanel('{"width":500,"height":520}'),
+    { width: PANEL_WIDTH, height: 520 },
+    'below the floor falls back on that axis only',
+  )
+  assert.deepEqual(
+    readStoredPanel('{"width":99999,"height":520}'),
+    { width: PANEL_WIDTH, height: 520 },
+    'above the ceiling falls back on that axis only',
+  )
+  assert.deepEqual(
+    readStoredPanel('{"width":900}'),
+    { width: 900, height: PANEL_HEIGHT },
+    'each axis falls back on its own',
+  )
+})
+
+test('decideSurface uses the size the user set, and stays put for the default (REQ-3.1/3.2)', () => {
+  const panel = { width: 700, height: 500 }
+  assert.equal(decideSurface({ viewportWidth: 800, viewportHeight: 700, panel }), 'popup')
+  assert.equal(
+    decideSurface({ viewportWidth: 747, viewportHeight: 700, panel }),
+    'tab',
+    'one pixel short of 700 + 2 x 24 is still a tab',
+  )
+  // A user who never resized keeps 007's exact boundary.
+  assert.equal(decideSurface({ viewportWidth: SURFACE_MIN_WIDTH, viewportHeight: SURFACE_MIN_HEIGHT }), 'popup')
+  assert.equal(decideSurface({ viewportWidth: SURFACE_MIN_WIDTH - 1, viewportHeight: SURFACE_MIN_HEIGHT }), 'tab')
 })

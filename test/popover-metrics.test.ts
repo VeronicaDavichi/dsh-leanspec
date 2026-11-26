@@ -68,6 +68,11 @@ interface View {
   vh: number
   /** `undefined` models "nothing measured yet" so the CSS fallback is exercised. */
   anchor?: number
+  /**
+   * The size injected through `--panel-w` / `--panel-h` (specs/010). `undefined`
+   * models a user who never resized: the CSS falls back to the 007 defaults.
+   */
+  panel?: { width: number; height: number }
 }
 
 function evalTerm(term: string, view: View): number {
@@ -101,10 +106,22 @@ function evalCss(expression: string, view: View): number {
   if (name === 'calc') return evalSum(inner, view)
   if (name === 'var') {
     const [variable, fallback] = splitTop(inner)
-    if (variable !== '--anchor') throw new Error(`unsupported custom property: ${variable}`)
-    return view.anchor ?? evalCss(fallback ?? '0px', view)
+    const injected = customProperty(variable ?? '', view)
+    return injected ?? evalCss(fallback ?? '0px', view)
   }
   throw new Error(`unsupported CSS function: ${name}`)
+}
+
+/**
+ * The values the header injects inline. Only three properties are supported on
+ * purpose: anything new in the stylesheet must be taught to this evaluator, so
+ * it cannot silently escape the consistency checks below.
+ */
+function customProperty(variable: string, view: View): number | undefined {
+  if (variable === '--anchor') return view.anchor
+  if (variable === '--panel-w') return view.panel?.width
+  if (variable === '--panel-h') return view.panel?.height
+  throw new Error(`unsupported custom property: ${variable}`)
 }
 
 /** Reads one declaration out of the shipped stylesheet, and it must exist. */
@@ -143,6 +160,33 @@ function boxAt(view: View): Box {
 
 const WIDTHS = [1920, 1440, 1088, 1087]
 const HEIGHTS = [712, 711]
+
+test('a size the user set is the box that renders and the size the decision reads (specs/010)', () => {
+  const panel = { width: 700, height: 500 }
+  const view = { vw: 800, vh: 700, panel }
+  const box = boxAt(view)
+  assert.equal(box.width, 700, 'the injected --panel-w wins over the fallback')
+  assert.equal(box.height, 500, 'and --panel-h does the same for the height')
+  // REQ-3.1: 700 + 48 <= 800 and 500 + 48 + 24 <= 700, so a window that used to
+  // be "too narrow" now fits a popup.
+  assert.equal(decideSurface({ viewportWidth: 800, viewportHeight: 700, panel }), 'popup')
+  assert.ok(box.left >= 0, 'the smaller box still starts inside the window')
+  assert.ok(box.bottom <= 700, 'and ends above the bottom edge')
+  assert.ok(box.body >= BODY_MIN, 'and keeps the body usable')
+})
+
+test('a stored size bigger than the viewport is capped on screen, never rendered off it', () => {
+  const panel = { width: 1400, height: 900 }
+  assert.equal(
+    evalCss(WIDTH_CAP, { vw: 1200, vh: 800, panel }),
+    1200 - 2 * PANEL_EDGE,
+    'the viewport term still wins',
+  )
+  assert.equal(
+    evalCss(HEIGHT_CAP, { vw: 1200, vh: 800, anchor: ANCHOR_FALLBACK, panel }),
+    800 - ANCHOR_FALLBACK - PANEL_EDGE,
+  )
+})
 
 test('the caps really are the panel size, minus the edge and anchor room', () => {
   assert.equal(evalCss(WIDTH_CAP, { vw: 4000, vh: 4000 }), PANEL_WIDTH)
