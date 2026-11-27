@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 (2026-11-27)
 
 ### Resizable popover (specs/010)
 

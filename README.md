@@ -106,7 +106,7 @@ DeepSeek Harness Web UI 插件：在会话标题栏打开当前项目的 `specs/
 dsh plugin --profile web add dsh-leanspec
 ```
 
-升级或固定版本时，用目标版本重装即可（例如 `dsh plugin --profile web add dsh-leanspec@0.2.1`）。
+升级或固定版本时，用目标版本重装即可（例如 `dsh plugin --profile web add dsh-leanspec@0.2.2`）。
 
 ### 源码安装（开发）
 
@@ -130,13 +130,13 @@ dsh plugin --profile web add /absolute/path/to/dsh-leanspec
 不克隆到本地，直接让 profile 从 GitHub 拉取固定 tag：
 
 ```sh
-dsh plugin --profile web add github:VeronicaDavichi/dsh-leanspec#v0.2.1
+dsh plugin --profile web add github:VeronicaDavichi/dsh-leanspec#v0.2.2
 ```
 
 等价写法：
 
 ```sh
-dsh plugin --profile web add git+https://github.com/VeronicaDavichi/dsh-leanspec.git#v0.2.1
+dsh plugin --profile web add git+https://github.com/VeronicaDavichi/dsh-leanspec.git#v0.2.2
 ```
 
 pnpm 10 可能要求允许该包的构建脚本。若安装时提示 blocked，按终端说明把对应 key 写入 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`，再执行一次上面的 `dsh plugin add`。Git 安装同样是开发/试用路径。
@@ -173,9 +173,16 @@ dsh plugin --profile web remove dsh-leanspec
 
 ## 📝 版本历史
 
-### 未发布
+### v0.2.2 (2026-11-27)
 
-- ✅ **弹窗可调长宽**：右下角对角手柄拖动同时改宽高（600×420 起，视口封顶），双击复位 1040×640；尺寸全局共用一份并持久化；形态判定改用你设定的尺寸，调小后窄窗口也能用弹窗（[specs/010](specs/010-resizable-popover/README.md)）
+**弹窗可调长宽**
+
+- ✅ 右下角对角手柄拖动同时改宽高（最小 600×420，最大不超过视口）
+- ✅ 双击手柄复位 1040×640；聚焦手柄用 `←/→/↑/↓` 每次调 16px
+- ✅ 尺寸存 `localStorage['leanspec.panel']`，**所有会话 / 项目共用一份**
+- ✅ 形态判定改用你设定的尺寸，调小后窄窗口也能用弹窗；未调过的人行为与 0.2.1 完全一致
+- ✅ 修复实测发现的拖动异常：浏览器原生拖拽会在按下后触发 `dragstart` 并 `pointercancel`，导致只动一格；已用 `preventDefault` + `draggable=false` + `user-select:none` 阻断
+- 设计与验收见 [specs/010](specs/010-resizable-popover/README.md)
 
 ### v0.2.1 (2026-11-11)
 
